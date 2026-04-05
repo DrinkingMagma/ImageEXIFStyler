@@ -1,0 +1,215 @@
+<html class="dark"><head></head><body class="bg-background text-on-surface font-body overflow-hidden h-screen flex flex-col">```html
+
+<meta charset="utf-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "on-error-container": "#ff9993",
+                  "tertiary": "#83fff6",
+                  "outline": "#757575",
+                  "error-dim": "#bb5551",
+                  "surface-variant": "#252626",
+                  "primary-container": "#004883",
+                  "error": "#ee7d77",
+                  "tertiary-fixed": "#73f1e7",
+                  "primary-dim": "#89bbff",
+                  "secondary-dim": "#9f9d9d",
+                  "surface-container-low": "#131313",
+                  "tertiary-container": "#73f1e7",
+                  "surface-tint": "#a3c9ff",
+                  "surface-container-high": "#1f2020",
+                  "tertiary-fixed-dim": "#63e2d9",
+                  "error-container": "#7f2927",
+                  "on-error": "#490106",
+                  "surface-container": "#191a1a",
+                  "on-secondary-container": "#c0bfbe",
+                  "on-secondary": "#202020",
+                  "on-primary-fixed": "#004076",
+                  "on-surface-variant": "#acabab",
+                  "on-secondary-fixed": "#3f3f3f",
+                  "secondary": "#9f9d9d",
+                  "on-tertiary-container": "#005854",
+                  "on-tertiary-fixed": "#004440",
+                  "surface": "#0e0e0e",
+                  "on-surface": "#e7e5e5",
+                  "secondary-container": "#3b3b3b",
+                  "on-tertiary": "#00625d",
+                  "surface-bright": "#2b2c2c",
+                  "background": "#0e0e0e",
+                  "surface-container-highest": "#252626",
+                  "inverse-surface": "#fcf9f8",
+                  "outline-variant": "#474848",
+                  "primary": "#a3c9ff",
+                  "primary-fixed-dim": "#bcd6ff",
+                  "inverse-primary": "#0060ac",
+                  "on-primary-container": "#b5d2ff",
+                  "on-tertiary-fixed-variant": "#00635e",
+                  "secondary-fixed-dim": "#d6d4d3",
+                  "surface-dim": "#0e0e0e",
+                  "on-background": "#e7e5e5",
+                  "on-primary": "#004177",
+                  "surface-container-lowest": "#000000",
+                  "inverse-on-surface": "#565555",
+                  "secondary-fixed": "#e4e2e1",
+                  "tertiary-dim": "#63e2d9",
+                  "primary-fixed": "#d3e3ff",
+                  "on-secondary-fixed-variant": "#5c5b5b",
+                  "on-primary-fixed-variant": "#005da6"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "fontFamily": {
+                  "headline": ["Inter"],
+                  "body": ["Inter"],
+                  "label": ["Inter"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #474848; border-radius: 10px; }
+    .glass-panel {
+      backdrop-filter: blur(20px);
+    }
+    .main-canvas {
+      background-image: radial-gradient(circle at 50% 50%, #191a1a 0%, #0e0e0e 100%);
+    }
+  </style>
+<!-- TopNavBar (Horizontal Shell) -->
+<header class="bg-neutral-950 dark:bg-black w-full h-12 flex items-center justify-between px-6 z-50 border-b border-neutral-800/15">
+<div class="flex items-center gap-4">
+<span class="font-black text-neutral-100 font-['Inter'] text-xs uppercase tracking-widest">Photo EXIF Frame Tool</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-neutral-500 hover:text-neutral-200 cursor-default" data-icon="help">help</span>
+<span class="material-symbols-outlined text-neutral-500 hover:text-neutral-200 cursor-default" data-icon="account_circle">account_circle</span>
+</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar (Left Column) -->
+<aside class="bg-neutral-900/80 dark:bg-black/80 backdrop-blur-xl h-screen w-64 flex flex-col py-6 px-4 shadow-2xl z-40 border-r border-outline-variant/15">
+<div class="mb-10">
+<h1 class="text-lg font-bold tracking-tighter text-neutral-100">LENS &amp; FRAME</h1>
+<p class="text-[10px] text-blue-400 font-['Inter'] tracking-tight uppercase">Professional Curator</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="bg-neutral-800 text-blue-400 rounded-sm font-medium flex items-center gap-3 py-3 px-3 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="photo_camera">photo_camera</span>
+<span class="text-sm tracking-tight">编辑器</span>
+</a>
+<a class="text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 flex items-center gap-3 py-3 px-3 rounded-sm transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome_motion">auto_awesome_motion</span>
+<span class="text-sm tracking-tight">批量处理</span>
+</a>
+<a class="text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 flex items-center gap-3 py-3 px-3 rounded-sm transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="style">style</span>
+<span class="text-sm tracking-tight">模板库</span>
+</a>
+<a class="text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 flex items-center gap-3 py-3 px-3 rounded-sm transition-colors mt-auto" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-sm tracking-tight">设置</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-neutral-800/50 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="close-up portrait of a professional photographer with soft studio lighting and dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrV6m5QnW0ztygOB7qjlwxpdW6qY5FL_5giCFHF5jGO47rpitPBy15qH-ABJNHkIfvpPFDil1vghqjT_QxM5lZjyv4FWQZWNzelraf4ebku8mGAH_IXI_FrokUy7s2pZW0x3qyImzyJ6B0YlG9qG-9fWXieIqWUjryM1P04hIfMsRhyouoTypPWNLlCv7LjKCdhl1iIofCVscOwMrNZyxJW2eEpuvq9m9KQHABqZd4Gn6xg6IN7E6VP3guzfDTFo5sxDFmlJ-PoA4"/>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-on-surface">Alex Rivera</span>
+<span class="text-[10px] text-secondary">Pro Plan</span>
+</div>
+</div>
+</aside>
+<!-- Center Area (Preview Canvas) -->
+<main class="flex-1 main-canvas relative flex items-center justify-center p-12 overflow-hidden">
+<!-- The Photo Frame - Default to 背景模糊 style -->
+<div class="shadow-[0px_40px_100px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in duration-700 bg-black overflow-hidden relative group">
+<div class="relative w-[750px] aspect-[3/2] flex items-center justify-center">
+<img alt="Background Blur Template Preview" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ug9SbUmgHGnd9C3JgOS28aOzg-Q087qimUEZbMnNOg6qJny8UTzcbOZFWFXvet152LVA0iuqyuVkaxXtOjqy-jXulMhay-cxRckxt0Xpn8C8lGnPpDwlr2iVRMeyoBvb7l4hT0q5hjknuk4Af_25J6bMfjLvTIMQHTE82pMnBa6VK8K3jYydowU4AyP23q9iwvD1Fw9qMT2NqSC-Ae6GwqSctKGxXSEey7mWDbkQTpC_JjqvpKfwoMDqLKiMfqUOs4TJc5SyVWH"/>
+<!-- Metadata Ghost (Tooltip) -->
+<div class="absolute bottom-4 right-4 bg-neutral-950/70 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="text-[10px] text-primary font-bold uppercase tracking-widest">EXIF: Template Preview</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Column (Parameters) -->
+<aside class="w-80 bg-surface-container-low flex flex-col border-l border-outline-variant/15">
+<div class="p-5 border-b border-outline-variant/10">
+<h2 class="text-sm font-bold tracking-tight text-on-surface uppercase">参数设置</h2>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-10">
+<!-- Template Selection -->
+<section>
+<label class="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4 block">模板选择</label>
+<div class="grid grid-cols-2 gap-3">
+<!-- 背景模糊 - Selected -->
+<button class="bg-surface-bright p-2 rounded-md flex flex-col gap-2 border border-primary ring-1 ring-primary overflow-hidden group">
+<div class="w-full aspect-[4/3] bg-neutral-800 rounded-sm overflow-hidden">
+<img alt="背景模糊" class="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida/ADBb0ug9SbUmgHGnd9C3JgOS28aOzg-Q087qimUEZbMnNOg6qJny8UTzcbOZFWFXvet152LVA0iuqyuVkaxXtOjqy-jXulMhay-cxRckxt0Xpn8C8lGnPpDwlr2iVRMeyoBvb7l4hT0q5hjknuk4Af_25J6bMfjLvTIMQHTE82pMnBa6VK8K3jYydowU4AyP23q9iwvD1Fw9qMT2NqSC-Ae6GwqSctKGxXSEey7mWDbkQTpC_JjqvpKfwoMDqLKiMfqUOs4TJc5SyVWH"/>
+</div>
+<span class="text-[10px] font-semibold text-primary truncate">背景模糊</span>
+</button>
+<!-- 标准水印 -->
+<button class="bg-surface-container-highest p-2 rounded-md flex flex-col gap-2 border border-transparent hover:border-outline-variant transition-all overflow-hidden group">
+<div class="w-full aspect-[4/3] bg-neutral-800 rounded-sm overflow-hidden">
+<img alt="标准水印" class="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida/ADBb0ugxiyj6wIBBsTIgXqKVFtxOYSIJfg-2RbNFl-JEwjps6kDWW0klABUx3QMRq4jccweDMxCU7Y9rwGgqp1-AhjI9r3XTeZP41iCgMKTtsHfL_XH0d75iCN-XJdmTeIgVmIq39ygtp0JQ4puzBj-plEmnzsKMi31Xf79-Hro1iQSDJjtgihWrb2kyrTavHAsz-XjusEN-9asebGupP7FM28egX2t68_6ArG5KkmlQdK7Ti9bCrhQ7hVTR_F4xylw-V5Xcjm4f5JUKRg"/>
+</div>
+<span class="text-[10px] font-medium text-on-surface-variant truncate">标准水印</span>
+</button>
+<!-- 标准水印2 -->
+<button class="bg-surface-container-highest p-2 rounded-md flex flex-col gap-2 border border-transparent hover:border-outline-variant transition-all overflow-hidden group">
+<div class="w-full aspect-[4/3] bg-neutral-800 rounded-sm overflow-hidden">
+<img alt="标准水印2" class="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida/ADBb0uhY4PujjatXT4FrD2J817wUB_zJq1DjNsvcyoJHGyRqmHZO3IGhs6Y9Jki1E4tMeUmEzgJI_yoJHe2qBTKqdoLyBNP3sqDhKarz9Snhi1Co_pGgCWe-CBJED-PVnI8fy-25YB4Q9FWnPas0PtBJ52VGT3bR8PZsjcsHH_YfuxlPP96GWrtcRmh5vV6XHhGAZXTV1dGzGtUwaE-l5vfaHSGUgNfYt3Lu3Bz64WdrGgNE5X-BCA9x8Yt6FDCIqIZkYdwVfWvzD9v0"/>
+</div>
+<span class="text-[10px] font-medium text-on-surface-variant truncate">标准水印2</span>
+</button>
+<!-- 尼康专用背景模糊 -->
+<button class="bg-surface-container-highest p-2 rounded-md flex flex-col gap-2 border border-transparent hover:border-outline-variant transition-all overflow-hidden group">
+<div class="w-full aspect-[4/3] bg-neutral-800 rounded-sm overflow-hidden">
+<img alt="尼康专用背景模糊" class="w-full h-full object-cover group-hover:scale-105 transition-transform" src="https://lh3.googleusercontent.com/aida/ADBb0uilsEmQxWCRt2coURxQj2-eip7l7WgWOhaJ8e3ybIj3bybNEZwkxBp-LH6xfS2oiupDpyJpz0Ymc-UcJmJIMk5FjgVDqTlaqEhQkvFyyTvl1ul9_S1m4JxtToNV0nWy6L86Hu0c5ECfBgMQU6wDB0LgWSbuRo2VNk_Xj3lUlv28NDLSHm1odEOWiZEdK2LIwloO6lwRqH5qXgQIfFnZsqwPtjhIP9fo-SIZWocsLKDexhEXOz2NoosKODcH93nL2ttyLppbNIfD-Q"/>
+</div>
+<span class="text-[10px] font-medium text-on-surface-variant truncate">尼康专用背景模糊</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Quick Actions -->
+<div class="p-6 bg-surface-container border-t border-outline-variant/10 grid grid-cols-1 gap-3">
+<button class="w-full bg-surface-bright py-3 rounded-md text-xs font-bold text-on-surface flex items-center justify-center gap-2 hover:bg-surface-container-highest transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="file_upload">file_upload</span>导入照片</button>
+<button class="w-full bg-gradient-to-br from-primary to-primary-container py-3 rounded-md text-xs font-bold text-on-primary-fixed flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-symbols-outlined text-[18px]" data-icon="download">download</span>导出图像</button>
+</div>
+</aside>
+</div>
+<!-- Footer (Status Bar) -->
+<footer class="bg-neutral-900 dark:bg-neutral-950 w-full h-8 flex items-center justify-between px-4 z-50 border-t border-neutral-800/15 fixed bottom-0">
+<div class="flex items-center gap-4">
+<span class="font-['Inter'] text-[11px] font-medium uppercase text-cyan-400">PHOTO EXIF FRAME TOOL v1.0 | 状态：就绪</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<a class="font-['Inter'] text-[11px] font-medium uppercase text-neutral-500 hover:text-neutral-300 transition-opacity" href="#">7516x5011</a>
+<a class="font-['Inter'] text-[11px] font-medium uppercase text-neutral-500 hover:text-neutral-300 transition-opacity" href="#">24.8MB</a>
+<a class="font-['Inter'] text-[11px] font-medium uppercase text-neutral-500 hover:text-neutral-300 transition-opacity" href="#">PNG Lossless</a>
+</div>
+</div>
+</footer>
+```</body></html>
