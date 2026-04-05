@@ -4,7 +4,11 @@ import json
 import os
 import sys
 import traceback
+from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass
+from functools import lru_cache
+from html import escape
 from pathlib import Path
 from typing import Optional
 
@@ -63,7 +67,7 @@ from PIL import Image
 import processor  # noqa: F401  # 触发处理器自动注册
 from core.configs import load_config
 from core.logger import init_from_config, logger
-from core.util import get_exif, get_template
+from core.util import get_exif, get_template, get_template_path
 from processor.core import start_process
 from processor import ensure_processors_registered
 
@@ -78,6 +82,8 @@ if hasattr(Qt, "AlignmentFlag"):
     LEFT_MOUSE_BUTTON = Qt.MouseButton.LeftButton
     NO_PEN = Qt.PenStyle.NoPen
     ROUND_CAP = Qt.PenCapStyle.RoundCap
+    TEXT_SELECTABLE_BY_MOUSE = Qt.TextInteractionFlag.TextSelectableByMouse
+    RICH_TEXT = Qt.TextFormat.RichText
 else:
     ALIGN_CENTER = Qt.AlignCenter
     ALIGN_LEFT = Qt.AlignLeft | Qt.AlignVCenter
@@ -89,6 +95,8 @@ else:
     LEFT_MOUSE_BUTTON = Qt.LeftButton
     NO_PEN = Qt.NoPen
     ROUND_CAP = Qt.RoundCap
+    TEXT_SELECTABLE_BY_MOUSE = Qt.TextSelectableByMouse
+    RICH_TEXT = Qt.RichText
 
 WINDOW_TITLE = "Photo EXIF Frame Tool"
 HEIC_AVAILABLE = getattr(processor, "pillow_heif", None) is not None
@@ -129,6 +137,29 @@ def set_widget_font_size(widget: QWidget, pixel_size: float):
     widget.setFont(font)
 
 
+def format_path_for_label(path: str | Path) -> tuple[str, str]:
+    resolved_path = str(Path(path).resolve())
+    display_path = resolved_path.replace("\\", "/")
+    rich_text = escape(display_path).replace("/", "/<wbr>")
+    return resolved_path, rich_text
+
+
+def get_file_signature(path: str | Path) -> tuple[str, int, int]:
+    resolved_path = Path(path).resolve()
+    stat = resolved_path.stat()
+    return str(resolved_path), stat.st_mtime_ns, stat.st_size
+
+
+@lru_cache(maxsize=32)
+def get_cached_exif(resolved_path: str, modified_ns: int, file_size: int) -> dict:
+    return get_exif(resolved_path)
+
+
+@lru_cache(maxsize=16)
+def get_cached_template(template_name: str, modified_ns: int):
+    return get_template(template_name)
+
+
 def pil_to_qimage(image: Image.Image) -> QImage:
     rgb_image = image.convert("RGB")
     data = rgb_image.tobytes("raw", "RGB")
@@ -146,32 +177,42 @@ class TemplateRenderService:
             init_from_config(self.config)
             TemplateRenderService._logging_ready = True
 
-    def build_context(self, input_path: str) -> dict:
-        path = Path(input_path)
+    def get_exif_data(self, input_path: str | Path) -> dict:
+        resolved_path, modified_ns, file_size = get_file_signature(input_path)
+        return deepcopy(get_cached_exif(resolved_path, modified_ns, file_size))
+
+    def get_template(self, template_name: str):
+        template_path = get_template_path(template_name)
+        return get_cached_template(template_name, template_path.stat().st_mtime_ns)
+
+    def build_context(self, input_path: str, exif_data: Optional[dict] = None) -> dict:
+        path = Path(input_path).resolve()
         return {
-            "exif": get_exif(input_path),
+            "exif": exif_data if exif_data is not None else self.get_exif_data(path),
             "filename": path.stem,
-            "file_dir": str(path.parent.resolve()).replace("\\", "/"),
-            "file_path": str(path.resolve()).replace("\\", "/"),
-            "files": [str(path.resolve())],
+            "file_dir": str(path.parent).replace("\\", "/"),
+            "file_path": str(path).replace("\\", "/"),
+            "files": [str(path)],
         }
 
-    def render_pipeline(self, input_path: str, template_name: str) -> list[dict]:
+    def render_pipeline(self, input_path: str, template_name: str, exif_data: Optional[dict] = None) -> list[dict]:
         ensure_processors_registered()
-        template = get_template(template_name)
-        rendered = template.render(self.build_context(input_path))
+        template = self.get_template(template_name)
+        rendered = template.render(self.build_context(input_path, exif_data=exif_data))
         return json.loads(rendered)
 
-    def render_preview(self, input_path: str, template_name: str) -> Image.Image:
-        pipeline = self.render_pipeline(input_path, template_name)
-        image = start_process(pipeline, input_path=input_path)
+    def render_preview(self, input_path: str, template_name: str, exif_data: Optional[dict] = None) -> Image.Image:
+        exif = exif_data if exif_data is not None else self.get_exif_data(input_path)
+        pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
+        image = start_process(pipeline, input_path=input_path, exif_data=exif)
         return image.copy()
 
     def export_image(self, input_path: str, template_name: str, output_path: str) -> str:
-        pipeline = self.render_pipeline(input_path, template_name)
+        exif = self.get_exif_data(input_path)
+        pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        start_process(pipeline, input_path=input_path, output_path=str(output))
+        start_process(pipeline, input_path=input_path, output_path=str(output), exif_data=exif)
         return str(output)
 
 
@@ -188,7 +229,8 @@ class PreviewWorker(QObject):
     def run(self):
         try:
             service = TemplateRenderService()
-            image = service.render_preview(self.input_path, self.template_name)
+            exif_data = service.get_exif_data(self.input_path)
+            image = service.render_preview(self.input_path, self.template_name, exif_data=exif_data)
             meta = {
                 "template": self.template_name,
                 "resolution": f"{image.width}x{image.height}",
@@ -302,20 +344,20 @@ class PreviewLabel(QLabel):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
-        contents = self.contentsRect()
+        overlay_rect = self.rect().adjusted(1, 1, -1, -1)
         painter.setPen(NO_PEN)
         painter.setBrush(QColor(5, 5, 5, 150))
-        painter.drawRoundedRect(contents.adjusted(4, 4, -4, -4), 18, 18)
+        painter.drawRoundedRect(overlay_rect, 18, 18)
 
-        badge_width = min(260, max(200, contents.width() - 80))
+        badge_width = min(260, max(200, overlay_rect.width() - 80))
         badge_height = 120
-        badge_x = contents.center().x() - badge_width / 2
-        badge_y = contents.center().y() - badge_height / 2
+        badge_x = overlay_rect.center().x() - badge_width / 2
+        badge_y = overlay_rect.center().y() - badge_height / 2
         painter.setBrush(QColor(17, 18, 20, 232))
         painter.drawRoundedRect(int(badge_x), int(badge_y), int(badge_width), badge_height, 18, 18)
 
         spinner_size = 30
-        spinner_x = contents.center().x() - spinner_size / 2
+        spinner_x = overlay_rect.center().x() - spinner_size / 2
         spinner_y = int(badge_y) + 24
         track_pen = QPen(QColor(71, 72, 72, 180), 3)
         track_pen.setCapStyle(ROUND_CAP)
@@ -395,6 +437,7 @@ class EditorWindow(QMainWindow):
         self.current_preview_token = 0
         self.preview_threads: dict[int, tuple[QThread, PreviewWorker]] = {}
         self.export_thread: Optional[tuple[QThread, ExportWorker]] = None
+        self.preview_cache: OrderedDict[tuple[str, int, int, str], tuple[QPixmap, dict]] = OrderedDict()
 
         self.preview_debounce = QTimer(self)
         self.preview_debounce.setSingleShot(True)
@@ -492,7 +535,7 @@ class EditorWindow(QMainWindow):
         headline = QLabel("实时预览")
         headline.setObjectName("sectionTitle")
         set_widget_font_size(headline, 14)
-        subline = QLabel("选择照片后，切换右侧模板会立即重新生成预览。")
+        subline = QLabel("选择照片后，切换右侧模板会重新生成预览。")
         subline.setObjectName("sectionSubtitle")
         set_widget_font_size(subline, 12)
         layout.addWidget(headline)
@@ -569,16 +612,28 @@ class EditorWindow(QMainWindow):
 
         body_layout.addLayout(grid)
 
+        image_info_card = QFrame()
+        image_info_card.setObjectName("imageInfoCard")
+        image_info_layout = QVBoxLayout(image_info_card)
+        image_info_layout.setContentsMargins(16, 14, 16, 14)
+        image_info_layout.setSpacing(6)
+
         file_title = QLabel("当前图片")
-        file_title.setObjectName("metaLabel")
-        set_widget_font_size(file_title, 10)
-        body_layout.addWidget(file_title)
+        file_title.setObjectName("imageSectionTitle")
+        set_widget_font_size(file_title, 12)
+        image_info_layout.addWidget(file_title)
 
         self.path_label = QLabel("尚未导入")
         self.path_label.setObjectName("pathLabel")
         self.path_label.setWordWrap(True)
-        set_widget_font_size(self.path_label, 12)
-        body_layout.addWidget(self.path_label)
+        self.path_label.setTextFormat(RICH_TEXT)
+        self.path_label.setTextInteractionFlags(TEXT_SELECTABLE_BY_MOUSE)
+        self.path_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.path_label.setMinimumWidth(0)
+        set_widget_font_size(self.path_label, 11)
+        image_info_layout.addWidget(self.path_label)
+
+        body_layout.addWidget(image_info_card)
 
         layout.addWidget(body, 1)
 
@@ -696,7 +751,7 @@ class EditorWindow(QMainWindow):
                 text-transform: uppercase;
                 letter-spacing: 1px;
             }
-            QLabel#sectionSubtitle, QLabel#fileInfo, QLabel#pathLabel {
+            QLabel#sectionSubtitle, QLabel#fileInfo {
                 color: #a3a3a3;
             }
             QFrame#rightPanel {
@@ -704,14 +759,27 @@ class EditorWindow(QMainWindow):
                 border-left: 1px solid rgba(71, 72, 72, 0.35);
             }
             QFrame#rightHeader, QFrame#actionPanel {
-                background: #191a1a;
-                border-bottom: 1px solid rgba(71, 72, 72, 0.18);
+                background: transparent;
+                border: none;
             }
             QLabel#metaLabel {
                 color: #9f9d9d;
                 font-weight: 800;
                 letter-spacing: 2px;
                 text-transform: uppercase;
+            }
+            QFrame#imageInfoCard {
+                background: transparent;
+                border: none;
+                border-radius: 0;
+            }
+            QLabel#imageSectionTitle {
+                color: #f4f4f5;
+                font-weight: 700;
+            }
+            QLabel#pathLabel {
+                color: #b7bcc3;
+                background: transparent;
             }
             QPushButton#secondaryButton, QPushButton#primaryButton {
                 min-height: 44px;
@@ -761,7 +829,9 @@ class EditorWindow(QMainWindow):
             return
 
         self.input_path = file_path
-        self.path_label.setText(str(Path(file_path).resolve()))
+        resolved_path, display_path = format_path_for_label(file_path)
+        self.path_label.setText(display_path)
+        self.path_label.setToolTip(resolved_path)
         self._refresh_file_metadata()
         self.schedule_preview()
 
@@ -783,6 +853,34 @@ class EditorWindow(QMainWindow):
         except Exception as exc:
             self.file_info_label.setText(f"{path.name} | 读取失败: {exc}")
 
+    def _make_preview_cache_key(self) -> Optional[tuple[str, int, int, str]]:
+        if not self.input_path:
+            return None
+        try:
+            resolved_path, modified_ns, file_size = get_file_signature(self.input_path)
+        except OSError:
+            return None
+        return resolved_path, modified_ns, file_size, self.selected_template
+
+    def _get_cached_preview(self) -> Optional[tuple[QPixmap, dict]]:
+        cache_key = self._make_preview_cache_key()
+        if cache_key is None:
+            return None
+        cached_preview = self.preview_cache.get(cache_key)
+        if cached_preview is None:
+            return None
+        self.preview_cache.move_to_end(cache_key)
+        return cached_preview
+
+    def _store_cached_preview(self, pixmap: QPixmap, meta: dict):
+        cache_key = self._make_preview_cache_key()
+        if cache_key is None:
+            return
+        self.preview_cache[cache_key] = (QPixmap(pixmap), dict(meta))
+        self.preview_cache.move_to_end(cache_key)
+        while len(self.preview_cache) > 8:
+            self.preview_cache.popitem(last=False)
+
     def _on_template_selected(self, template_name: str, checked: bool):
         if not checked:
             return
@@ -798,6 +896,17 @@ class EditorWindow(QMainWindow):
             return
 
         self.current_preview_token += 1
+
+        cached_preview = self._get_cached_preview()
+        if cached_preview is not None:
+            pixmap, meta = cached_preview
+            self.preview_label.set_preview(QPixmap(pixmap))
+            self.preview_label.set_loading(False)
+            self.export_button.setEnabled(True)
+            self.file_info_label.setText(f"{Path(self.input_path).name} | {meta['template']}")
+            self._update_status(f"Status: preview updated | cache hit | template: {meta['template']}")
+            return
+
         self.export_button.setEnabled(False)
         self.preview_label.set_loading(True, "正在渲染模板预览")
         self._update_status(f"状态：正在生成预览 | 模板：{self.selected_template}")
@@ -826,6 +935,7 @@ class EditorWindow(QMainWindow):
         if token != self.current_preview_token:
             return
         pixmap = QPixmap.fromImage(image)
+        self._store_cached_preview(pixmap, meta)
         self.preview_label.set_preview(pixmap)
         self.preview_label.set_loading(False)
         self.export_button.setEnabled(True)

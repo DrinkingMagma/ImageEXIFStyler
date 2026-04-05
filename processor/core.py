@@ -267,7 +267,13 @@ def register_processor(key: str, processor_cls: Type['ImageProcessor']):
     logger.debug(f"Registered processor: {key} -> {processor_cls.__name__}")
 
 
-def start_process(data: List[dict], input_path: str = None, output_path: str = None, initial_buffer: List = None):
+def start_process(
+    data: List[dict],
+    input_path: str = None,
+    output_path: str = None,
+    initial_buffer: List = None,
+    exif_data: Dict[str, Any] = None,
+):
     """
     执行处理管道
 
@@ -288,7 +294,7 @@ def start_process(data: List[dict], input_path: str = None, output_path: str = N
 
     # 填充 exif 信息
     if input_path is not None:
-        exif = get_exif(input_path)
+        exif = exif_data if exif_data is not None else get_exif(input_path)
         for node in nodes:
             if 'exif' not in node:
                 node['exif'] = exif

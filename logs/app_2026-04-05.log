@@ -334,3 +334,4 @@ RuntimeError: Processor 'rounded_corner' not found
 2026-04-05 16:51:52.125 | SUCCESS  | processor.core:start_process:338 - Generated new image: C:\Users\lzy\Downloads\20260328_6303_标准水印.jpg
 2026-04-05 17:07:21.797 | SUCCESS  | processor.core:start_process:338 - Generated new image: C:\Users\lzy\Downloads\20260322江心洲_尼康专用背景模糊.jpg
 2026-04-05 17:34:17.677 | SUCCESS  | processor.core:start_process:338 - Generated new image: C:\Users\lzy\Downloads\20260322江心洲_标准水印2.jpg
+2026-04-05 19:14:53.683 | SUCCESS  | processor.core:start_process:344 - Generated new image: C:\Users\lzy\Downloads\20260328_6303_背景模糊.jpg
