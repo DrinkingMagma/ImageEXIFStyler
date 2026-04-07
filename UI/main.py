@@ -8,7 +8,6 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
-from html import escape
 from pathlib import Path
 from typing import Optional
 
@@ -33,6 +32,7 @@ try:
         QPushButton,
         QScrollArea,
         QSizePolicy,
+        QStackedWidget,
         QToolButton,
         QVBoxLayout,
         QWidget,
@@ -55,6 +55,7 @@ except ImportError:
         QPushButton,
         QScrollArea,
         QSizePolicy,
+        QStackedWidget,
         QToolButton,
         QVBoxLayout,
         QWidget,
@@ -63,6 +64,7 @@ except ImportError:
     QT_BINDING = "PyQt5"
 
 from PIL import Image
+from UI.batch_process_page import BatchProcessPage
 
 import processor  # noqa: F401  # 触发处理器自动注册
 from core.configs import load_config
@@ -83,7 +85,7 @@ if hasattr(Qt, "AlignmentFlag"):
     NO_PEN = Qt.PenStyle.NoPen
     ROUND_CAP = Qt.PenCapStyle.RoundCap
     TEXT_SELECTABLE_BY_MOUSE = Qt.TextInteractionFlag.TextSelectableByMouse
-    RICH_TEXT = Qt.TextFormat.RichText
+    PLAIN_TEXT = Qt.TextFormat.PlainText
 else:
     ALIGN_CENTER = Qt.AlignCenter
     ALIGN_LEFT = Qt.AlignLeft | Qt.AlignVCenter
@@ -96,7 +98,7 @@ else:
     NO_PEN = Qt.NoPen
     ROUND_CAP = Qt.RoundCap
     TEXT_SELECTABLE_BY_MOUSE = Qt.TextSelectableByMouse
-    RICH_TEXT = Qt.RichText
+    PLAIN_TEXT = Qt.PlainText
 
 WINDOW_TITLE = "Photo EXIF Frame Tool"
 HEIC_AVAILABLE = getattr(processor, "pillow_heif", None) is not None
@@ -137,11 +139,16 @@ def set_widget_font_size(widget: QWidget, pixel_size: float):
     widget.setFont(font)
 
 
+def refresh_widget_style(widget: QWidget):
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+    widget.update()
+
+
 def format_path_for_label(path: str | Path) -> tuple[str, str]:
     resolved_path = str(Path(path).resolve())
     display_path = resolved_path.replace("\\", "/")
-    rich_text = escape(display_path).replace("/", "/<wbr>")
-    return resolved_path, rich_text
+    return resolved_path, display_path
 
 
 def get_file_signature(path: str | Path) -> tuple[str, int, int]:
@@ -207,12 +214,30 @@ class TemplateRenderService:
         image = start_process(pipeline, input_path=input_path, exif_data=exif)
         return image.copy()
 
-    def export_image(self, input_path: str, template_name: str, output_path: str) -> str:
+    def export_image(
+        self,
+        input_path: str,
+        template_name: str,
+        output_path: str,
+        quality: Optional[int] = None,
+        subsampling: Optional[int] = None,
+    ) -> str:
         exif = self.get_exif_data(input_path)
         pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        start_process(pipeline, input_path=input_path, output_path=str(output), exif_data=exif)
+        save_options = {}
+        if quality is not None:
+            save_options["quality"] = quality
+        if subsampling is not None:
+            save_options["subsampling"] = subsampling
+        start_process(
+            pipeline,
+            input_path=input_path,
+            output_path=str(output),
+            exif_data=exif,
+            save_options=save_options or None,
+        )
         return str(output)
 
 
@@ -245,16 +270,31 @@ class ExportWorker(QObject):
     finished = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, input_path: str, template_name: str, output_path: str):
+    def __init__(
+        self,
+        input_path: str,
+        template_name: str,
+        output_path: str,
+        quality: Optional[int] = None,
+        subsampling: Optional[int] = None,
+    ):
         super().__init__()
         self.input_path = input_path
         self.template_name = template_name
         self.output_path = output_path
+        self.quality = quality
+        self.subsampling = subsampling
 
     def run(self):
         try:
             service = TemplateRenderService()
-            output_path = service.export_image(self.input_path, self.template_name, self.output_path)
+            output_path = service.export_image(
+                self.input_path,
+                self.template_name,
+                self.output_path,
+                quality=self.quality,
+                subsampling=self.subsampling,
+            )
             self.finished.emit(output_path)
         except Exception as exc:
             logger.error(traceback.format_exc())
@@ -433,7 +473,9 @@ class EditorWindow(QMainWindow):
         self.resize(1520, 800)
         self.setMinimumSize(1520, 800)
 
+        config = load_config()
         self.input_path: Optional[str] = None
+        self.current_mode = "editor"
         self.current_preview_token = 0
         self.preview_threads: dict[int, tuple[QThread, PreviewWorker]] = {}
         self.export_thread: Optional[tuple[QThread, ExportWorker]] = None
@@ -444,10 +486,16 @@ class EditorWindow(QMainWindow):
         self.preview_debounce.timeout.connect(self._render_preview)
 
         self.template_specs = TEMPLATE_SPECS
-        self.selected_template = self.template_specs[0].name
+        self.template_buttons: dict[str, TemplateCardButton] = {}
+        self.nav_buttons: dict[str, QPushButton] = {}
+        self.selected_template = config.get("render", "template_name", fallback=self.template_specs[0].name)
+        if self.selected_template not in [spec.name for spec in self.template_specs]:
+            self.selected_template = self.template_specs[0].name
+        self.batch_page: Optional[BatchProcessPage] = None
 
         self._build_ui()
         self._apply_theme()
+        self._set_mode("editor")
         self._update_status("状态：就绪")
 
     def _build_ui(self):
@@ -462,8 +510,12 @@ class EditorWindow(QMainWindow):
         content.setContentsMargins(0, 0, 0, 0)
         content.setSpacing(0)
         content.addWidget(self._build_left_sidebar())
-        content.addWidget(self._build_preview_area(), 1)
-        content.addWidget(self._build_right_panel())
+        self.page_stack = QStackedWidget()
+        self.page_stack.setObjectName("contentStack")
+        self.page_stack.addWidget(self._build_editor_page())
+        self.batch_page = self._build_batch_page()
+        self.page_stack.addWidget(self.batch_page)
+        content.addWidget(self.page_stack, 1)
         root_layout.addLayout(content, 1)
 
         root_layout.addWidget(self._build_footer())
@@ -483,10 +535,10 @@ class EditorWindow(QMainWindow):
         layout.addWidget(title, 0, ALIGN_LEFT)
         layout.addStretch(1)
 
-        right_hint = QLabel("EDITOR")
-        right_hint.setObjectName("topHint")
-        set_widget_font_size(right_hint, 11)
-        layout.addWidget(right_hint, 0, ALIGN_RIGHT)
+        self.top_hint_label = QLabel("EDITOR")
+        self.top_hint_label.setObjectName("topHint")
+        set_widget_font_size(self.top_hint_label, 11)
+        layout.addWidget(self.top_hint_label, 0, ALIGN_RIGHT)
         return bar
 
     def _build_left_sidebar(self) -> QWidget:
@@ -508,21 +560,68 @@ class EditorWindow(QMainWindow):
         layout.addWidget(subtitle)
         layout.addSpacing(22)
 
-        for text, active in [("编辑器", True), ("批量处理", False), ("模板库", False), ("设置", False)]:
+        nav_items = [
+            ("editor", "编辑器", True),
+            ("batch", "批量处理", True),
+            ("templates", "模板库", False),
+            ("settings", "设置", False),
+        ]
+        for mode, text, implemented in nav_items:
             button = QPushButton(text)
-            button.setProperty("navActive", active)
+            button.setProperty("navActive", False)
+            button.setProperty("navImplemented", implemented)
             button.setCursor(POINTING_HAND_CURSOR)
-            button.setEnabled(active)
+            if implemented:
+                button.clicked.connect(lambda _checked=False, target_mode=mode: self._set_mode(target_mode))
+                self.nav_buttons[mode] = button
+            else:
+                button.setEnabled(False)
             set_widget_font_size(button, 13)
             layout.addWidget(button)
 
         layout.addStretch(1)
 
-        profile_label = QLabel("Current Mode\nSingle Image Preview")
-        profile_label.setObjectName("profileLabel")
-        set_widget_font_size(profile_label, 11)
-        layout.addWidget(profile_label)
+        self.profile_label = QLabel()
+        self.profile_label.setObjectName("profileLabel")
+        set_widget_font_size(self.profile_label, 11)
+        layout.addWidget(self.profile_label)
         return sidebar
+
+    def _build_editor_page(self) -> QWidget:
+        page = QWidget()
+        page.setObjectName("editorPage")
+
+        layout = QHBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_preview_area(), 1)
+        layout.addWidget(self._build_right_panel())
+        return page
+
+    def _build_batch_page(self) -> BatchProcessPage:
+        config = load_config()
+        output_dir = str((PROJECT_ROOT / config.get("DEFAULT", "output_folder", fallback="./output")).resolve())
+        quality = config.getint("DEFAULT", "quality", fallback=90)
+        subsampling = config.getint("DEFAULT", "subsampling", fallback=2)
+        override_existing = False
+        if config.has_option("DEFAULT", "override_existing"):
+            override_existing = config.getboolean("DEFAULT", "override_existing", fallback=False)
+        else:
+            override_existing = config.getboolean("DEFAULT", "override_existed", fallback=False)
+
+        page = BatchProcessPage(
+            [spec.name for spec in self.template_specs],
+            self.selected_template,
+            output_dir,
+            quality,
+            subsampling,
+            override_existing,
+            self,
+        )
+        page.template_selected.connect(self._handle_batch_template_selected)
+        page.status_changed.connect(self._update_status)
+        page.footer_meta_changed.connect(self._update_footer_meta)
+        return page
 
     def _build_preview_area(self) -> QWidget:
         panel = QFrame()
@@ -606,6 +705,7 @@ class EditorWindow(QMainWindow):
             button = TemplateCardButton(spec)
             button.clicked.connect(lambda checked, name=spec.name: self._on_template_selected(name, checked))
             self.template_group.addButton(button)
+            self.template_buttons[spec.name] = button
             if spec.name == self.selected_template:
                 button.setChecked(True)
             grid.addWidget(button, index // 2, index % 2)
@@ -626,7 +726,7 @@ class EditorWindow(QMainWindow):
         self.path_label = QLabel("尚未导入")
         self.path_label.setObjectName("pathLabel")
         self.path_label.setWordWrap(True)
-        self.path_label.setTextFormat(RICH_TEXT)
+        self.path_label.setTextFormat(PLAIN_TEXT)
         self.path_label.setTextInteractionFlags(TEXT_SELECTABLE_BY_MOUSE)
         self.path_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         self.path_label.setMinimumWidth(0)
@@ -690,6 +790,9 @@ class EditorWindow(QMainWindow):
                 background: #0e0e0e;
                 color: #e7e5e5;
             }
+            QStackedWidget#contentStack, QWidget#editorPage {
+                background: transparent;
+            }
             QFrame#topBar, QFrame#footerBar {
                 background: #050505;
                 border: none;
@@ -705,7 +808,7 @@ class EditorWindow(QMainWindow):
             }
             QFrame#leftSidebar {
                 background: #020202;
-                border-right: 1px solid rgba(71, 72, 72, 0.35);
+                border-right: 1px solid rgba(71, 72, 72, 0.18);
             }
             QLabel#sidebarTitle {
                 font-weight: 800;
@@ -718,26 +821,34 @@ class EditorWindow(QMainWindow):
                 text-transform: uppercase;
             }
             QPushButton[navActive="true"], QPushButton[navActive="false"] {
-                min-height: 42px;
-                border-radius: 10px;
+                min-height: 44px;
+                border-radius: 8px;
                 border: none;
                 text-align: left;
                 padding: 0 14px;
-                font-weight: 600;
+                font-weight: 700;
+                background: transparent;
             }
             QPushButton[navActive="true"] {
-                background: #1f2937;
+                background: #1a1d22;
                 color: #60a5fa;
             }
             QPushButton[navActive="false"] {
                 background: transparent;
                 color: #737373;
             }
+            QPushButton[navActive="false"]:hover:enabled {
+                background: #111214;
+                color: #e7e5e5;
+            }
+            QPushButton[navImplemented="false"] {
+                color: #4b5563;
+            }
             QLabel#profileLabel {
                 color: #9ca3af;
                 background: #111214;
-                border: 1px solid rgba(71, 72, 72, 0.35);
-                border-radius: 12px;
+                border: 1px solid rgba(71, 72, 72, 0.18);
+                border-radius: 8px;
                 padding: 14px;
                 line-height: 1.5;
             }
@@ -754,19 +865,22 @@ class EditorWindow(QMainWindow):
             QLabel#sectionSubtitle, QLabel#fileInfo {
                 color: #a3a3a3;
             }
-            QFrame#rightPanel {
+            QFrame#rightPanel, QFrame#batchRightPanel {
                 background: #131313;
-                border-left: 1px solid rgba(71, 72, 72, 0.35);
+                border-left: 1px solid rgba(71, 72, 72, 0.15);
             }
             QFrame#rightHeader, QFrame#actionPanel {
                 background: transparent;
                 border: none;
             }
-            QLabel#metaLabel {
+            QLabel#metaLabel, QLabel#batchEyebrow {
                 color: #9f9d9d;
                 font-weight: 800;
                 letter-spacing: 2px;
                 text-transform: uppercase;
+            }
+            QLabel#batchEyebrow {
+                color: #848a91;
             }
             QFrame#imageInfoCard {
                 background: transparent;
@@ -777,15 +891,16 @@ class EditorWindow(QMainWindow):
                 color: #f4f4f5;
                 font-weight: 700;
             }
-            QLabel#pathLabel {
+            QLabel#pathLabel, QLabel#pathBoxLabel {
                 color: #b7bcc3;
                 background: transparent;
             }
-            QPushButton#secondaryButton, QPushButton#primaryButton {
+            QPushButton#secondaryButton, QPushButton#primaryButton, QPushButton#dangerButton {
                 min-height: 44px;
-                border-radius: 12px;
+                border-radius: 8px;
                 font-weight: 800;
                 border: none;
+                padding: 0 16px;
             }
             QPushButton#secondaryButton {
                 background: #252626;
@@ -794,12 +909,23 @@ class EditorWindow(QMainWindow):
             QPushButton#secondaryButton:hover {
                 background: #2b2c2c;
             }
+            QPushButton#secondaryButton:disabled, QPushButton#dangerButton:disabled {
+                background: #1d1d1d;
+                color: #5f6368;
+            }
+            QPushButton#dangerButton {
+                background: #241717;
+                color: #ee7d77;
+            }
+            QPushButton#dangerButton:hover:enabled {
+                background: #2f1b1b;
+            }
             QPushButton#primaryButton {
-                background: #a3c9ff;
-                color: #004177;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #a3c9ff, stop:1 #004883);
+                color: #e7f1ff;
             }
             QPushButton#primaryButton:hover:enabled {
-                background: #bcd6ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bcd6ff, stop:1 #0a5ea8);
             }
             QPushButton#primaryButton:disabled {
                 background: #3b3b3b;
@@ -814,12 +940,210 @@ class EditorWindow(QMainWindow):
                 font-weight: 600;
                 padding-left: 18px;
             }
-            QScrollArea#previewScroll {
+            QScrollArea#previewScroll, QScrollArea#batchCardsScroll {
                 border: none;
                 background: transparent;
             }
+            QFrame#batchWorkspace {
+                background: #101010;
+            }
+            QFrame#batchProgressCard {
+                background: #111214;
+                border-radius: 8px;
+                border: 1px solid rgba(71, 72, 72, 0.12);
+            }
+            QLabel#progressCounter, QLabel#qualityValue {
+                color: #83fff6;
+                font-weight: 700;
+            }
+            QLabel#sliderHint, QLabel#batchDetailLabel {
+                color: #7f848d;
+            }
+            QFrame#pathBox {
+                background: #0a0b0b;
+                border: 1px solid rgba(71, 72, 72, 0.12);
+                border-radius: 8px;
+            }
+            QComboBox#batchCombo {
+                min-height: 42px;
+                border-radius: 8px;
+                padding: 0 14px;
+                background: #252626;
+                color: #e7e5e5;
+                border: 1px solid rgba(163, 201, 255, 0.35);
+            }
+            QComboBox#batchCombo:hover {
+                background: #2b2c2c;
+            }
+            QComboBox#batchCombo::drop-down {
+                border: none;
+                width: 28px;
+            }
+            QComboBox#batchCombo::down-arrow {
+                image: none;
+                width: 0;
+                height: 0;
+            }
+            QSlider#qualitySlider::groove:horizontal {
+                height: 4px;
+                background: #252626;
+                border-radius: 2px;
+            }
+            QSlider#qualitySlider::sub-page:horizontal {
+                height: 4px;
+                background: #83fff6;
+                border-radius: 2px;
+            }
+            QSlider#qualitySlider::handle:horizontal {
+                width: 14px;
+                margin: -5px 0;
+                border-radius: 7px;
+                background: #a3c9ff;
+                border: 2px solid #0e0e0e;
+            }
+            QProgressBar#batchOverallProgress {
+                min-height: 6px;
+                background: #252626;
+                border: none;
+                border-radius: 3px;
+            }
+            QProgressBar#batchOverallProgress::chunk {
+                background: #a3c9ff;
+                border-radius: 3px;
+            }
+            QLabel#batchEmptyLabel {
+                color: #6f747b;
+                background: #111214;
+                border-radius: 8px;
+                border: 1px dashed rgba(127, 132, 141, 0.25);
+                padding: 28px;
+            }
+            QFrame#batchCard {
+                background: #151515;
+                border: 1px solid transparent;
+                border-radius: 8px;
+            }
+            QFrame#batchCard:hover {
+                background: #181919;
+            }
+            QFrame#batchCard[cardSelected="true"] {
+                background: #191b1e;
+                border: 1px solid rgba(163, 201, 255, 0.45);
+            }
+            QFrame#batchCard[batchState="processing"] {
+                background: #14181a;
+            }
+            QFrame#batchCard[batchState="success"] {
+                background: #15191a;
+            }
+            QFrame#batchCard[batchState="failed"] {
+                background: #1a1414;
+            }
+            QFrame#batchPreviewFrame {
+                background: #f4f4f5;
+                border-radius: 6px;
+            }
+            QFrame#batchCard[batchState="processing"] QFrame#batchPreviewFrame {
+                background: #182024;
+            }
+            QLabel#batchThumbnail {
+                background: #f4f4f5;
+                border-radius: 4px;
+            }
+            QToolButton#batchRemoveButton {
+                background: #5b1f21;
+                color: #ffe6e5;
+                border: 1px solid rgba(238, 125, 119, 0.28);
+                border-radius: 6px;
+                padding: 0;
+                font-weight: 800;
+            }
+            QToolButton#batchRemoveButton:hover {
+                background: #6d2629;
+                color: #fff2f1;
+            }
+            QToolButton#batchRemoveButton:pressed {
+                background: #491719;
+            }
+            QToolButton#batchRemoveButton:disabled {
+                background: #241717;
+                color: #77514f;
+                border: 1px solid rgba(119, 81, 79, 0.25);
+            }
+            QLabel#batchFileName {
+                color: #f4f4f5;
+                font-weight: 700;
+            }
+            QLabel#batchMeta {
+                color: #8f959c;
+            }
             """
         )
+
+    def _set_mode(self, mode: str):
+        if mode not in {"editor", "batch"}:
+            return
+
+        self.current_mode = mode
+        self.page_stack.setCurrentIndex(0 if mode == "editor" else 1)
+        self.top_hint_label.setText("EDITOR" if mode == "editor" else "BATCH PROCESS")
+        self.profile_label.setText("当前模式\n单图编辑预览" if mode == "editor" else "当前模式\n批量处理工作区")
+
+        for button_mode, button in self.nav_buttons.items():
+            button.setProperty("navActive", button_mode == mode)
+            refresh_widget_style(button)
+
+        if mode == "batch" and self.batch_page is not None:
+            self.batch_page.set_selected_template(self.selected_template)
+            self.batch_page.sync_footer()
+        else:
+            self._refresh_file_metadata()
+
+        batch_busy = self.batch_page is not None and self.batch_page.batch_thread is not None
+        if self.export_thread is None and not batch_busy:
+            if mode == "editor":
+                self._update_status("状态：单图编辑就绪")
+            else:
+                queue_size = len(self.batch_page.batch_items) if self.batch_page is not None else 0
+                if queue_size:
+                    self._update_status(f"状态：批量队列已就绪 | 共 {queue_size} 张")
+                else:
+                    self._update_status("状态：批量队列为空")
+
+    def _sync_editor_template_buttons(self, template_name: str):
+        for button_name, button in self.template_buttons.items():
+            should_check = button_name == template_name
+            if button.isChecked() == should_check:
+                continue
+            button.blockSignals(True)
+            button.setChecked(should_check)
+            button.blockSignals(False)
+
+    def _apply_selected_template(self, template_name: str, source: str):
+        if template_name not in [spec.name for spec in self.template_specs]:
+            return
+
+        template_changed = template_name != self.selected_template
+        self.selected_template = template_name
+
+        if source != "editor":
+            self._sync_editor_template_buttons(template_name)
+        if source != "batch" and self.batch_page is not None:
+            self.batch_page.set_selected_template(template_name)
+
+        self._refresh_file_metadata()
+        if self.current_mode == "editor" and template_changed and self.input_path:
+            self.schedule_preview()
+        elif self.current_mode == "batch" and self.batch_page is not None:
+            self.batch_page.sync_footer()
+
+    def _handle_batch_template_selected(self, template_name: str):
+        self._apply_selected_template(template_name, source="batch")
+
+    def _update_footer_meta(self, resolution: str, file_size: str, format_text: str):
+        self.resolution_label.setText(resolution)
+        self.filesize_label.setText(file_size)
+        self.format_label.setText(format_text)
 
     def _choose_input_image(self):
         config = load_config()
@@ -838,17 +1162,16 @@ class EditorWindow(QMainWindow):
     def _refresh_file_metadata(self):
         if not self.input_path:
             self.file_info_label.setText("未选择图像")
-            self.resolution_label.setText("--")
-            self.filesize_label.setText("--")
-            self.format_label.setText("--")
+            self._update_footer_meta("--", "--", "--")
             return
 
         path = Path(self.input_path)
         try:
             with Image.open(path) as image:
-                self.resolution_label.setText(f"{image.width}x{image.height}")
-                self.format_label.setText(image.format or path.suffix.upper().replace(".", ""))
-            self.filesize_label.setText(format_bytes(path.stat().st_size))
+                resolution = f"{image.width}x{image.height}"
+                format_text = image.format or path.suffix.upper().replace(".", "")
+            file_size = format_bytes(path.stat().st_size)
+            self._update_footer_meta(resolution, file_size, format_text)
             self.file_info_label.setText(f"{path.name} | {self.selected_template}")
         except Exception as exc:
             self.file_info_label.setText(f"{path.name} | 读取失败: {exc}")
@@ -884,9 +1207,7 @@ class EditorWindow(QMainWindow):
     def _on_template_selected(self, template_name: str, checked: bool):
         if not checked:
             return
-        self.selected_template = template_name
-        self._refresh_file_metadata()
-        self.schedule_preview()
+        self._apply_selected_template(template_name, source="editor")
 
     def schedule_preview(self):
         if not self.input_path:
@@ -904,7 +1225,7 @@ class EditorWindow(QMainWindow):
             self.preview_label.set_loading(False)
             self.export_button.setEnabled(True)
             self.file_info_label.setText(f"{Path(self.input_path).name} | {meta['template']}")
-            self._update_status(f"Status: preview updated | cache hit | template: {meta['template']}")
+            self._update_status(f"状态：预览已更新 | 缓存命中 | 模板：{meta['template']}")
             return
 
         self.export_button.setEnabled(False)

@@ -41,7 +41,15 @@ def process_single_file(input_path, input_folder, output_folder, template, confi
             'files': [input_path]
         }
         final_template = template.render(context)
-        start_process(json.loads(final_template), input_path, output_path=output_path)
+        start_process(
+            json.loads(final_template),
+            input_path,
+            output_path=output_path,
+            save_options={
+                "quality": config.getint("DEFAULT", "quality"),
+                "subsampling": config.getint("DEFAULT", "subsampling"),
+            },
+        )
         return True, False, None
 
     except Exception as e:

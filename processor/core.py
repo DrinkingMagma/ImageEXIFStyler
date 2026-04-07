@@ -8,6 +8,7 @@ import uuid
 from abc import ABC, abstractmethod
 from enum import Enum
 from itertools import chain
+from pathlib import Path
 from typing import Dict, Any, Type, List, MutableMapping, Iterator, Optional
 
 from PIL import Image, ImageColor, ImageOps
@@ -273,6 +274,7 @@ def start_process(
     output_path: str = None,
     initial_buffer: List = None,
     exif_data: Dict[str, Any] = None,
+    save_options: Optional[Dict[str, Any]] = None,
 ):
     """
     执行处理管道
@@ -340,6 +342,21 @@ def start_process(
 
     nodes[-1].save_buffer("final").success()
     if output_path is not None:
-        nodes[-1].get_buffer()[0].convert("RGB").save(output_path, quality=load_config().getint('DEFAULT', 'quality'), subsampling=load_config().getint('DEFAULT', 'subsampling'))
+        destination = Path(output_path)
+        save_kwargs: Dict[str, Any] = {}
+        extension = destination.suffix.lower()
+
+        if extension in {".jpg", ".jpeg", ".webp"}:
+            config = load_config()
+            quality = config.getint('DEFAULT', 'quality')
+            subsampling = config.getint('DEFAULT', 'subsampling')
+            if save_options is not None:
+                quality = save_options.get("quality", quality)
+                subsampling = save_options.get("subsampling", subsampling)
+            save_kwargs["quality"] = quality
+            if extension in {".jpg", ".jpeg"}:
+                save_kwargs["subsampling"] = subsampling
+
+        nodes[-1].get_buffer()[0].convert("RGB").save(output_path, **save_kwargs)
         logger.success(f"Generated new image: {output_path}")
     return nodes[-1].get_buffer()[0]
