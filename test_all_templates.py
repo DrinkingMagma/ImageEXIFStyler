@@ -116,7 +116,7 @@ def test_templates(specific_templates=None):
             print(f"\n[{i}/{total_files}] 处理: {file_name}")
             
             success, skipped, error = process_single_file(
-                input_path, input_folder, output_folder, template, config, override
+                input_path, input_folder, output_folder, template_name, template, config, override
             )
             
             if success:

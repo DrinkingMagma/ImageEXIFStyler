@@ -18,6 +18,13 @@ def load_config() -> configparser.ConfigParser:
     return config
 
 
+def save_config(config: configparser.ConfigParser) -> None:
+    config_path = Path(CONFIG_PATH)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with config_path.open('w', encoding='utf-8') as f:
+        config.write(f)
+
+
 def load_project_info():
     with open(PROJECT_INFO, "rb") as f:  # 注意：tomllib 需要以二进制模式（"rb"）打开文件
         data = tomli.load(f)

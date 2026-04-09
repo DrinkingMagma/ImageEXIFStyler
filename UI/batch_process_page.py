@@ -57,7 +57,7 @@ from PIL import Image, ImageOps
 
 from core.configs import load_config
 from core.logger import init_from_config, logger
-from core.util import get_exif, get_template, get_template_path
+from core.util import build_export_filename, get_exif, get_template, get_template_path
 from processor import ensure_processors_registered
 from processor.core import start_process
 
@@ -274,8 +274,13 @@ def build_batch_output_path(input_path: str, output_root: str, common_root: Opti
     return destination_root / relative_path
 
 
-def build_batch_output_filename(source: Path, template_name: str, extension: str = ".jpg") -> str:
-    return f"{source.stem}_{template_name}{extension}"
+def build_batch_output_filename(
+    source: Path,
+    template_name: str,
+    quality: int,
+    extension: str = ".jpg",
+) -> str:
+    return build_export_filename(source, template_name, quality=quality, extension=extension)
 
 
 class TemplateRenderService:
@@ -331,6 +336,7 @@ class BatchProcessWorker(QObject):
         subsampling: int,
         override_existing: bool,
         common_root: Optional[Path],
+        extension: str = ".jpg",
     ):
         super().__init__()
         self.input_paths = input_paths
@@ -340,6 +346,7 @@ class BatchProcessWorker(QObject):
         self.subsampling = subsampling
         self.override_existing = override_existing
         self.common_root = common_root
+        self.extension = extension if extension.startswith(".") else f".{extension}"
 
     def _eta_text(self, started_at: float, processed: int, total: int) -> str:
         if processed <= 0 or processed >= total:
@@ -361,7 +368,9 @@ class BatchProcessWorker(QObject):
         for index, input_path in enumerate(self.input_paths):
             current_display_index = index + 1
             output_path = build_batch_output_path(input_path, self.output_root, self.common_root)
-            output_path = output_path.with_name(build_batch_output_filename(output_path, self.template_name))
+            output_path = output_path.with_name(
+                build_batch_output_filename(output_path, self.template_name, self.quality, self.extension)
+            )
             self.item_progress.emit(index, 6, "准备处理")
 
             try:
@@ -1072,6 +1081,14 @@ class BatchProcessPage(QWidget):
         self.output_label.setText(display_text)
         self.output_label.setToolTip(resolved)
 
+    def set_output_dir(self, output_dir: str):
+        self.output_dir = str(Path(output_dir).resolve())
+        self._update_output_label()
+        self._emit_footer_meta()
+
+    def set_quality(self, quality: int):
+        self._set_quality(int(quality))
+
     def _set_quality(self, value: int):
         self.quality = int(value)
         self.quality_slider.blockSignals(True)
@@ -1271,6 +1288,7 @@ class BatchProcessPage(QWidget):
             self.subsampling,
             self.override_existing,
             common_root,
+            ".jpg",
         )
         worker.moveToThread(thread)
         thread.started.connect(worker.run)

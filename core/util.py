@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import os
@@ -272,6 +274,40 @@ def list_files(path: str, suffixes: set[str], depth: int = 0, max_depth: int = 2
         logger.error(f"list_files: 扫描失败 {path}: {e}")
 
     return result
+
+
+def build_export_filename(
+    source: str | Path,
+    template_name: str,
+    quality: int | None = None,
+    extension: str | None = None,
+) -> str:
+    source_path = Path(source)
+    resolved_extension = extension or source_path.suffix or ".jpg"
+    if not resolved_extension.startswith("."):
+        resolved_extension = f".{resolved_extension}"
+
+    parts = [source_path.stem]
+    if template_name:
+        parts.append(template_name)
+    if quality is not None:
+        parts.append(f"Q{int(quality)}")
+    return f"{'_'.join(parts)}{resolved_extension.lower()}"
+
+
+def ensure_export_suffixes(path: str | Path, template_name: str, quality: int | None = None) -> Path:
+    output_path = Path(path)
+    extension = output_path.suffix or ".jpg"
+    tokens = [token for token in output_path.stem.split("_") if token]
+
+    if template_name and template_name not in tokens:
+        tokens.append(template_name)
+
+    quality_token = f"Q{int(quality)}" if quality is not None else None
+    if quality_token and quality_token not in tokens:
+        tokens.append(quality_token)
+
+    return output_path.with_name(f"{'_'.join(tokens)}{extension.lower()}")
 
 
 def log_rt(func):

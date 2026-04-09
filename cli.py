@@ -7,11 +7,19 @@ from pathlib import Path
 
 from core.configs import load_config, templates_dir, CONFIG_PATH
 from core.logger import logger, init_from_config
-from core.util import list_files, get_exif, get_template
+from core.util import build_export_filename, get_exif, get_template, list_files
 from processor.core import start_process
 
 
-def process_single_file(input_path, input_folder, output_folder, template, config, override_existed=False):
+def process_single_file(
+    input_path,
+    input_folder,
+    output_folder,
+    template_name,
+    template,
+    config,
+    override_existed=False,
+):
     """处理单个文件，返回 (success, skipped, error_message)"""
     if not os.path.exists(input_path):
         return False, False, f"文件不存在: {input_path}"
@@ -19,8 +27,15 @@ def process_single_file(input_path, input_folder, output_folder, template, confi
     try:
         # 获取 input_path 相对 input_folder 的位置
         relative_path = os.path.relpath(input_path, input_folder)
-        # 基于 output_folder 组装出输出路径 output_path
-        output_path = os.path.join(output_folder, relative_path)
+        source_relative_path = Path(relative_path)
+        quality = config.getint("DEFAULT", "quality")
+        output_name = build_export_filename(
+            source_relative_path,
+            template_name,
+            quality=quality,
+            extension=source_relative_path.suffix or ".jpg",
+        )
+        output_path = os.path.join(output_folder, str(source_relative_path.with_name(output_name)))
 
         # 如果路径不存在, 那么递归创建文件夹
         output_dir = os.path.dirname(output_path)
@@ -46,7 +61,7 @@ def process_single_file(input_path, input_folder, output_folder, template, confi
             input_path,
             output_path=output_path,
             save_options={
-                "quality": config.getint("DEFAULT", "quality"),
+                "quality": quality,
                 "subsampling": config.getint("DEFAULT", "subsampling"),
             },
         )
@@ -175,7 +190,7 @@ def main():
         logger.info(f"正在处理: {file_name}")
 
         success, skipped, error = process_single_file(
-            file_path, input_folder, output_folder, template, config, override_existed
+            file_path, input_folder, output_folder, template_name, template, config, override_existed
         )
 
         if skipped:

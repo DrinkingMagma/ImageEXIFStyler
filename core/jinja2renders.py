@@ -1,6 +1,6 @@
 from jinja2 import pass_context
 
-from core.configs import logos_dir
+from core.configs import load_config, logos_dir
 
 # 品牌名到 logo 文件名的映射表
 # 支持多个关键词映射到同一个 logo
@@ -62,6 +62,10 @@ def vh(context, percent):
 
 @pass_context
 def auto_logo(context, brand: str = None):
+    config = load_config()
+    if not config.getboolean('DEFAULT', 'enable_logo', fallback=True):
+        return None
+
     exif = context.get('exif', {})
     brand = (brand or exif.get('Make', 'default')).strip()
 
