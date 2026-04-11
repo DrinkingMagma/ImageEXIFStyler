@@ -64,7 +64,7 @@ def vh(context, percent):
 def auto_logo(context, brand: str = None):
     config = load_config()
     if not config.getboolean('DEFAULT', 'enable_logo', fallback=True):
-        return None
+        return ""
 
     exif = context.get('exif', {})
     brand = (brand or exif.get('Make', 'default')).strip()
@@ -83,4 +83,4 @@ def auto_logo(context, brand: str = None):
     default_logo = logos_dir / 'default.png'
     if default_logo.exists():
         return str(default_logo.absolute()).replace('\\', '/')
-    return None
+    return ""

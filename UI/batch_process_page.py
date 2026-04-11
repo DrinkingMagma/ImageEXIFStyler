@@ -1,94 +1,72 @@
 from __future__ import annotations
 
-import json
 import os
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-
-try:
-    from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QThread, Signal
-    from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
-    from PySide6.QtWidgets import (
-        QComboBox,
-        QDialog,
-        QFileDialog,
-        QFrame,
-        QGridLayout,
-        QHBoxLayout,
-        QLabel,
-        QMessageBox,
-        QProgressBar,
-        QPushButton,
-        QScrollArea,
-        QSizePolicy,
-        QSlider,
-        QToolButton,
-        QVBoxLayout,
-        QWidget,
-    )
-except ImportError:
-    from PyQt5.QtCore import QEvent, QObject, QPoint, QSize, Qt, QThread, pyqtSignal as Signal
-    from PyQt5.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
-    from PyQt5.QtWidgets import (
-        QComboBox,
-        QDialog,
-        QFileDialog,
-        QFrame,
-        QGridLayout,
-        QHBoxLayout,
-        QLabel,
-        QMessageBox,
-        QProgressBar,
-        QPushButton,
-        QScrollArea,
-        QSizePolicy,
-        QSlider,
-        QToolButton,
-        QVBoxLayout,
-        QWidget,
-    )
 
 from PIL import Image, ImageOps
 
 from core.configs import load_config
-from core.logger import init_from_config, logger
-from core.util import build_export_filename, get_exif, get_template, get_template_path
-from processor import ensure_processors_registered
+from core.logger import logger
+from core.util import build_export_filename
 from processor.core import start_process
-
-if hasattr(Qt, "AlignmentFlag"):
-    ALIGN_CENTER = Qt.AlignmentFlag.AlignCenter
-    ALIGN_LEFT = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-    ALIGN_RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-    ALIGN_TOP = Qt.AlignmentFlag.AlignTop
-    KEEP_ASPECT_RATIO = Qt.AspectRatioMode.KeepAspectRatio
-    SMOOTH_TRANSFORMATION = Qt.TransformationMode.SmoothTransformation
-    POINTING_HAND_CURSOR = Qt.CursorShape.PointingHandCursor
-    LEFT_MOUSE_BUTTON = Qt.MouseButton.LeftButton
-    TEXT_SELECTABLE_BY_MOUSE = Qt.TextInteractionFlag.TextSelectableByMouse
-    HORIZONTAL = Qt.Orientation.Horizontal
-    FRAMELESS_WINDOW_HINT = Qt.WindowType.FramelessWindowHint
-    DIALOG_WINDOW_TYPE = Qt.WindowType.Dialog
-    TRANSLUCENT_BACKGROUND = Qt.WidgetAttribute.WA_TranslucentBackground
-else:
-    ALIGN_CENTER = Qt.AlignCenter
-    ALIGN_LEFT = Qt.AlignLeft | Qt.AlignVCenter
-    ALIGN_RIGHT = Qt.AlignRight | Qt.AlignVCenter
-    ALIGN_TOP = Qt.AlignTop
-    KEEP_ASPECT_RATIO = Qt.KeepAspectRatio
-    SMOOTH_TRANSFORMATION = Qt.SmoothTransformation
-    POINTING_HAND_CURSOR = Qt.PointingHandCursor
-    LEFT_MOUSE_BUTTON = Qt.LeftButton
-    TEXT_SELECTABLE_BY_MOUSE = Qt.TextSelectableByMouse
-    HORIZONTAL = Qt.Horizontal
-    FRAMELESS_WINDOW_HINT = Qt.FramelessWindowHint
-    DIALOG_WINDOW_TYPE = Qt.Dialog
-    TRANSLUCENT_BACKGROUND = Qt.WA_TranslucentBackground
+from UI.shared.qt import (
+    ALIGN_CENTER,
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    ALIGN_TOP,
+    DIALOG_WINDOW_TYPE,
+    FRAMELESS_WINDOW_HINT,
+    HORIZONTAL,
+    KEEP_ASPECT_RATIO,
+    LEFT_MOUSE_BUTTON,
+    POINTING_HAND_CURSOR,
+    SMOOTH_TRANSFORMATION,
+    TEXT_SELECTABLE_BY_MOUSE,
+    TRANSLUCENT_BACKGROUND,
+    QComboBox,
+    QDialog,
+    QEvent,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QObject,
+    QPoint,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSize,
+    QSlider,
+    QThread,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+    QColor,
+    QPainter,
+    QPixmap,
+    Signal,
+)
+from UI.shared.render_service import TemplateRenderService
+from UI.shared.utils import (
+    event_global_pos,
+    format_bytes,
+    format_duration,
+    format_path_for_label,
+    get_cached_exif,
+    get_file_signature,
+    pil_to_qimage,
+    px_to_pt,
+    refresh_widget_style,
+    set_widget_font_size,
+)
 
 BATCH_CARD_WIDTH = 188
 
@@ -108,84 +86,6 @@ class BatchQueueItem:
     output_resolution: Optional[str] = None
     output_size: Optional[int] = None
     error_message: Optional[str] = None
-
-
-def format_bytes(size: int) -> str:
-    units = ["B", "KB", "MB", "GB"]
-    value = float(size)
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            return f"{value:.1f}{unit}" if unit != "B" else f"{int(value)}B"
-        value /= 1024
-    return f"{size}B"
-
-
-def format_duration(seconds: float) -> str:
-    seconds = max(0, int(round(seconds)))
-    minutes, remaining = divmod(seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    if hours:
-        return f"{hours:02d}:{minutes:02d}:{remaining:02d}"
-    return f"{minutes:02d}:{remaining:02d}"
-
-
-def px_to_pt(pixels: float) -> float:
-    return round(pixels * 0.75, 2)
-
-
-def set_widget_font_size(widget: QWidget, pixel_size: float):
-    font = widget.font()
-    font.setPointSizeF(px_to_pt(pixel_size))
-    widget.setFont(font)
-
-
-def refresh_widget_style(widget: QWidget):
-    widget.style().unpolish(widget)
-    widget.style().polish(widget)
-    widget.update()
-
-
-def event_global_pos(event) -> QPoint:
-    if hasattr(event, "globalPosition"):
-        return event.globalPosition().toPoint()
-    return event.globalPos()
-
-
-def format_path_for_label(path: str | Path) -> tuple[str, str]:
-    resolved_path = str(Path(path).resolve())
-    display_path = resolved_path.replace("\\", "/")
-    return resolved_path, display_path
-
-
-def get_file_signature(path: str | Path) -> tuple[str, int, int]:
-    resolved_path = Path(path).resolve()
-    stat = resolved_path.stat()
-    return str(resolved_path), stat.st_mtime_ns, stat.st_size
-
-
-@lru_cache(maxsize=32)
-def get_cached_exif(resolved_path: str, modified_ns: int, file_size: int) -> dict:
-    del modified_ns, file_size
-    return get_exif(resolved_path)
-
-
-@lru_cache(maxsize=16)
-def get_cached_template(template_name: str, modified_ns: int):
-    del modified_ns
-    return get_template(template_name)
-
-
-def pil_to_qimage(image: Image.Image) -> QImage:
-    rgb_image = image.convert("RGB")
-    data = rgb_image.tobytes("raw", "RGB")
-    qimage = QImage(
-        data,
-        rgb_image.width,
-        rgb_image.height,
-        rgb_image.width * 3,
-        QImage.Format_RGB888,
-    )
-    return qimage.copy()
 
 
 def make_placeholder_thumbnail(size: QSize, text: str = "Preview") -> QPixmap:
@@ -283,41 +183,6 @@ def build_batch_output_filename(
     return build_export_filename(source, template_name, quality=quality, extension=extension)
 
 
-class TemplateRenderService:
-    _logging_ready = False
-
-    def __init__(self):
-        self.config = load_config()
-        ensure_processors_registered()
-        if not TemplateRenderService._logging_ready:
-            init_from_config(self.config)
-            TemplateRenderService._logging_ready = True
-
-    def get_exif_data(self, input_path: str | Path) -> dict:
-        resolved_path, modified_ns, file_size = get_file_signature(input_path)
-        return deepcopy(get_cached_exif(resolved_path, modified_ns, file_size))
-
-    def get_template(self, template_name: str):
-        template_path = get_template_path(template_name)
-        return get_cached_template(template_name, template_path.stat().st_mtime_ns)
-
-    def build_context(self, input_path: str, exif_data: Optional[dict] = None) -> dict:
-        path = Path(input_path).resolve()
-        return {
-            "exif": exif_data if exif_data is not None else self.get_exif_data(path),
-            "filename": path.stem,
-            "file_dir": str(path.parent).replace("\\", "/"),
-            "file_path": str(path).replace("\\", "/"),
-            "files": [str(path)],
-        }
-
-    def render_pipeline(self, input_path: str, template_name: str, exif_data: Optional[dict] = None) -> list[dict]:
-        ensure_processors_registered()
-        template = self.get_template(template_name)
-        rendered = template.render(self.build_context(input_path, exif_data=exif_data))
-        return json.loads(rendered)
-
-
 class BatchProcessWorker(QObject):
     item_progress = Signal(int, int, str)
     item_complete = Signal(int, str, str, int)
@@ -336,6 +201,7 @@ class BatchProcessWorker(QObject):
         subsampling: int,
         override_existing: bool,
         common_root: Optional[Path],
+        max_workers: Optional[int] = None,
         extension: str = ".jpg",
     ):
         super().__init__()
@@ -346,7 +212,15 @@ class BatchProcessWorker(QObject):
         self.subsampling = subsampling
         self.override_existing = override_existing
         self.common_root = common_root
+        self.max_workers = max_workers or self.recommended_worker_count(len(input_paths))
         self.extension = extension if extension.startswith(".") else f".{extension}"
+
+    @staticmethod
+    def recommended_worker_count(total: int) -> int:
+        cpu_count = os.cpu_count() or 1
+        if total <= 1 or cpu_count <= 2:
+            return 1
+        return min(total, max(1, cpu_count - 1), 4)
 
     def _eta_text(self, started_at: float, processed: int, total: int) -> str:
         if processed <= 0 or processed >= total:
@@ -355,63 +229,99 @@ class BatchProcessWorker(QObject):
         average = elapsed / processed
         return format_duration(average * (total - processed))
 
+    def _process_item(self, index: int, input_path: str) -> dict:
+        output_path = build_batch_output_path(input_path, self.output_root, self.common_root)
+        output_path = output_path.with_name(
+            build_batch_output_filename(output_path, self.template_name, self.quality, self.extension)
+        )
+        self.item_progress.emit(index, 6, "准备处理")
+
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            if output_path.exists() and not self.override_existing:
+                return {
+                    "status": "skipped",
+                    "output_path": str(output_path),
+                }
+
+            service = TemplateRenderService()
+            exif_data = service.get_exif_data(input_path)
+            self.item_progress.emit(index, 28, "读取 EXIF")
+            pipeline = service.render_pipeline(input_path, self.template_name, exif_data=exif_data)
+            self.item_progress.emit(index, 58, "渲染模板")
+            start_process(
+                pipeline,
+                input_path=input_path,
+                output_path=str(output_path),
+                exif_data=exif_data,
+                save_options={
+                    "quality": self.quality,
+                    "subsampling": self.subsampling,
+                },
+            )
+            self.item_progress.emit(index, 88, "写入文件")
+            with Image.open(output_path) as rendered_image:
+                resolution = f"{rendered_image.width}x{rendered_image.height}"
+            return {
+                "status": "success",
+                "output_path": str(output_path),
+                "resolution": resolution,
+                "output_size": output_path.stat().st_size,
+            }
+        except Exception as exc:
+            logger.error(traceback.format_exc())
+            return {
+                "status": "failed",
+                "error_message": str(exc),
+            }
+
     def run(self):
         total = len(self.input_paths)
         success_count = 0
         skipped_count = 0
         failure_count = 0
         started_at = time.perf_counter()
-        service = TemplateRenderService()
+        worker_count = self.max_workers
 
-        self.status_message.emit(f"状态：批量处理中 | 模板：{self.template_name}")
+        self.status_message.emit(f"状态：批量处理中 | 模板：{self.template_name} | 并发：{worker_count} 线程")
 
-        for index, input_path in enumerate(self.input_paths):
-            current_display_index = index + 1
-            output_path = build_batch_output_path(input_path, self.output_root, self.common_root)
-            output_path = output_path.with_name(
-                build_batch_output_filename(output_path, self.template_name, self.quality, self.extension)
-            )
-            self.item_progress.emit(index, 6, "准备处理")
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(self._process_item, index, input_path): index
+                for index, input_path in enumerate(self.input_paths)
+            }
+            for future in as_completed(futures):
+                index = futures[future]
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    logger.error(traceback.format_exc())
+                    result = {"status": "failed", "error_message": str(exc)}
 
-            try:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                if output_path.exists() and not self.override_existing:
-                    skipped_count += 1
-                    self.item_skipped.emit(index, str(output_path))
-                else:
-                    exif_data = service.get_exif_data(input_path)
-                    self.item_progress.emit(index, 28, "读取 EXIF")
-                    pipeline = service.render_pipeline(input_path, self.template_name, exif_data=exif_data)
-                    self.item_progress.emit(index, 58, "渲染模板")
-                    start_process(
-                        pipeline,
-                        input_path=input_path,
-                        output_path=str(output_path),
-                        exif_data=exif_data,
-                        save_options={
-                            "quality": self.quality,
-                            "subsampling": self.subsampling,
-                        },
-                    )
-                    self.item_progress.emit(index, 88, "写入文件")
-                    with Image.open(output_path) as rendered_image:
-                        resolution = f"{rendered_image.width}x{rendered_image.height}"
-                    output_size = output_path.stat().st_size
+                status = result["status"]
+                if status == "success":
                     success_count += 1
-                    self.item_complete.emit(index, str(output_path), resolution, output_size)
-            except Exception as exc:
-                logger.error(traceback.format_exc())
-                failure_count += 1
-                self.item_failed.emit(index, str(exc))
+                    self.item_complete.emit(
+                        index,
+                        result["output_path"],
+                        result["resolution"],
+                        result["output_size"],
+                    )
+                elif status == "skipped":
+                    skipped_count += 1
+                    self.item_skipped.emit(index, result["output_path"])
+                else:
+                    failure_count += 1
+                    self.item_failed.emit(index, result.get("error_message", "Unknown error"))
 
-            processed = success_count + skipped_count + failure_count
-            next_index = min(processed + 1, total) if processed < total else total
-            self.overall_progress.emit(
-                processed,
-                total,
-                max(next_index, current_display_index if processed < total else total),
-                self._eta_text(started_at, processed, total),
-            )
+                processed = success_count + skipped_count + failure_count
+                next_index = min(processed + 1, total) if processed < total else total
+                self.overall_progress.emit(
+                    processed,
+                    total,
+                    next_index,
+                    self._eta_text(started_at, processed, total),
+                )
 
         self.finished.emit(
             {
@@ -420,6 +330,7 @@ class BatchProcessWorker(QObject):
                 "skipped": skipped_count,
                 "failed": failure_count,
                 "elapsed": time.perf_counter() - started_at,
+                "workers": worker_count,
             }
         )
 
@@ -1273,10 +1184,13 @@ class BatchProcessPage(QWidget):
         output_dir.mkdir(parents=True, exist_ok=True)
         self._reset_item_states()
         self.overall_progress.setValue(0)
+        worker_count = BatchProcessWorker.recommended_worker_count(len(self.batch_items))
         self.progress_counter_label.setText(f"第 1/{len(self.batch_items)} 张图片")
-        self.detail_label.setText(f"正在准备批量任务\n模板：{self.selected_template} | 输出质量：{self.quality}%")
+        self.detail_label.setText(
+            f"正在准备批量任务\n模板：{self.selected_template} | 输出质量：{self.quality}% | 并发：{worker_count} 线程"
+        )
         self._set_controls_enabled(False)
-        self.status_changed.emit(f"状态：开始批量处理 | 共 {len(self.batch_items)} 张")
+        self.status_changed.emit(f"状态：开始批量处理 | 共 {len(self.batch_items)} 张 | 并发 {worker_count} 线程")
 
         common_root = compute_common_root([item.path for item in self.batch_items])
         thread = QThread(self)
@@ -1288,6 +1202,7 @@ class BatchProcessPage(QWidget):
             self.subsampling,
             self.override_existing,
             common_root,
+            worker_count,
             ".jpg",
         )
         worker.moveToThread(thread)
@@ -1370,7 +1285,7 @@ class BatchProcessPage(QWidget):
         self.progress_counter_label.setText(f"第 {total}/{total} 张图片" if total else "第 0/0 张图片")
         self.detail_label.setText(
             f"完成：{summary['success']} | 跳过：{summary['skipped']} | 失败：{summary['failed']}\n"
-            f"耗时：{format_duration(summary['elapsed'])} | 输出目录：{Path(self.output_dir).name}"
+            f"耗时：{format_duration(summary['elapsed'])} | 并发：{summary.get('workers', 1)} 线程 | 输出目录：{Path(self.output_dir).name}"
         )
         self._update_summary()
         self.status_changed.emit(

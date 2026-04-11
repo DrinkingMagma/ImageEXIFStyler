@@ -5,6 +5,7 @@ import sys
 from abc import ABC
 from dataclasses import dataclass, asdict
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional, List
 
@@ -20,7 +21,16 @@ from processor.core import PipelineContext, ImageProcessor, Direction, _parse_co
 BASE_FONT_SIZE = 512
 
 
-def load_font(font_path: str):
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "0", "false", "no", "off"}
+    return bool(value)
+
+
+@lru_cache(maxsize=32)
+def load_font(font_path: str | None):
     try:
         if font_path:
             font_file = Path(font_path)
@@ -62,8 +72,8 @@ class TextSegment:
             font_path=data.get("font_path", None),
             height=int(data.get("height", 100)),
             color=data.get("color", "black"),
-            is_bold=data.get("is_bold", False),
-            trim=data.get("trim", False),
+            is_bold=_as_bool(data.get("is_bold", False)),
+            trim=_as_bool(data.get("trim", False)),
         )
 
     @staticmethod
@@ -263,19 +273,23 @@ class RichTextGenerator(Generator):
         draw.text((0, 0), text, font=font, fill=_parse_color(segment.color))
 
         # 使用 start_process 处理图片，解耦对 Filter 的直接依赖
-        pipeline = [
-            {
-                "processor_name": "trim",
-                "trim_top": segment.trim,
-                "trim_bottom": segment.trim,
-                "save_buffer": False,
-            },
+        pipeline = []
+        if segment.trim:
+            pipeline.append(
+                {
+                    "processor_name": "trim",
+                    "trim_top": True,
+                    "trim_bottom": True,
+                    "save_buffer": False,
+                }
+            )
+        pipeline.append(
             {
                 "processor_name": "resize",
                 "height": segment.height * 1.13 if segment.is_bold else segment.height,
                 "save_buffer": False,
             }
-        ]
+        )
         # 使用临时 buffer 路径（实际上是 image 对象）
         from processor.core import start_process
         return start_process(pipeline, input_path=None, output_path=None, initial_buffer=[image])

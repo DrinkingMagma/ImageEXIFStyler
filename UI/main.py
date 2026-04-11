@@ -1,276 +1,96 @@
 from __future__ import annotations
 
-import json
 import os
 import sys
 import traceback
 from collections import OrderedDict
-from copy import deepcopy
-from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-os.chdir(PROJECT_ROOT)
-
-try:
-    from PySide6.QtCore import QObject, QSize, Qt, QThread, QTimer, Signal
-    from PySide6.QtGui import QColor, QFont, QIcon, QImage, QPainter, QPen, QPixmap
-    from PySide6.QtWidgets import (
-        QApplication,
-        QButtonGroup,
-        QComboBox,
-        QFileDialog,
-        QFrame,
-        QGridLayout,
-        QHBoxLayout,
-        QInputDialog,
-        QLabel,
-        QLineEdit,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QScrollArea,
-        QSlider,
-        QSizePolicy,
-        QStackedWidget,
-        QToolButton,
-        QVBoxLayout,
-        QWidget,
-    )
-
-    QT_BINDING = "PySide6"
-except ImportError:
-    from PyQt5.QtCore import QObject, QSize, Qt, QThread, QTimer, pyqtSignal as Signal
-    from PyQt5.QtGui import QColor, QFont, QIcon, QImage, QPainter, QPen, QPixmap
-    from PyQt5.QtWidgets import (
-        QApplication,
-        QButtonGroup,
-        QComboBox,
-        QFileDialog,
-        QFrame,
-        QGridLayout,
-        QHBoxLayout,
-        QInputDialog,
-        QLabel,
-        QLineEdit,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QScrollArea,
-        QSlider,
-        QSizePolicy,
-        QStackedWidget,
-        QToolButton,
-        QVBoxLayout,
-        QWidget,
-    )
-
-    QT_BINDING = "PyQt5"
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+os.chdir(_PROJECT_ROOT)
 
 from PIL import Image
-from UI.batch_process_page import BatchProcessPage
 
 import processor  # noqa: F401  # 触发处理器自动注册
 from core.configs import load_config, logos_dir, save_config
-from core.logger import init_from_config, logger
+from core.logger import logger
 from core.util import (
     build_export_filename,
     create_template,
     ensure_export_suffixes,
-    get_exif,
-    get_template,
     get_template_content,
-    get_template_path,
-    list_templates,
 )
-from processor.core import start_process
-from processor import ensure_processors_registered
-
-if hasattr(Qt, "AlignmentFlag"):
-    ALIGN_CENTER = Qt.AlignmentFlag.AlignCenter
-    ALIGN_LEFT = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-    ALIGN_RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-    KEEP_ASPECT_RATIO = Qt.AspectRatioMode.KeepAspectRatio
-    SMOOTH_TRANSFORMATION = Qt.TransformationMode.SmoothTransformation
-    TOOL_BUTTON_TEXT_UNDER_ICON = Qt.ToolButtonStyle.ToolButtonTextUnderIcon
-    POINTING_HAND_CURSOR = Qt.CursorShape.PointingHandCursor
-    LEFT_MOUSE_BUTTON = Qt.MouseButton.LeftButton
-    NO_PEN = Qt.PenStyle.NoPen
-    ROUND_CAP = Qt.PenCapStyle.RoundCap
-    TEXT_SELECTABLE_BY_MOUSE = Qt.TextInteractionFlag.TextSelectableByMouse
-    PLAIN_TEXT = Qt.TextFormat.PlainText
-    SCROLLBAR_ALWAYS_OFF = Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-    HORIZONTAL = Qt.Orientation.Horizontal
-else:
-    ALIGN_CENTER = Qt.AlignCenter
-    ALIGN_LEFT = Qt.AlignLeft | Qt.AlignVCenter
-    ALIGN_RIGHT = Qt.AlignRight | Qt.AlignVCenter
-    KEEP_ASPECT_RATIO = Qt.KeepAspectRatio
-    SMOOTH_TRANSFORMATION = Qt.SmoothTransformation
-    TOOL_BUTTON_TEXT_UNDER_ICON = Qt.ToolButtonTextUnderIcon
-    POINTING_HAND_CURSOR = Qt.PointingHandCursor
-    LEFT_MOUSE_BUTTON = Qt.LeftButton
-    NO_PEN = Qt.NoPen
-    ROUND_CAP = Qt.RoundCap
-    TEXT_SELECTABLE_BY_MOUSE = Qt.TextSelectableByMouse
-    PLAIN_TEXT = Qt.PlainText
-    SCROLLBAR_ALWAYS_OFF = Qt.ScrollBarAlwaysOff
-    HORIZONTAL = Qt.Horizontal
+from UI.batch_process_page import BatchProcessPage
+from UI.shared.paths import PROJECT_ROOT
+from UI.shared.qt import (
+    ALIGN_CENTER,
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    HORIZONTAL,
+    KEEP_ASPECT_RATIO,
+    LEFT_MOUSE_BUTTON,
+    NO_PEN,
+    PLAIN_TEXT,
+    POINTING_HAND_CURSOR,
+    QT_BINDING,
+    ROUND_CAP,
+    SCROLLBAR_ALWAYS_OFF,
+    SMOOTH_TRANSFORMATION,
+    TEXT_SELECTABLE_BY_MOUSE,
+    TOOL_BUTTON_TEXT_UNDER_ICON,
+    QApplication,
+    QButtonGroup,
+    QColor,
+    QComboBox,
+    QFileDialog,
+    QFont,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QIcon,
+    QImage,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QObject,
+    QPainter,
+    QPen,
+    QPixmap,
+    QPushButton,
+    QScrollArea,
+    QSize,
+    QSizePolicy,
+    QSlider,
+    QStackedWidget,
+    Qt,
+    QThread,
+    QTimer,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+    Signal,
+)
+from UI.shared.render_service import TemplateRenderService
+from UI.shared.templates import TEMPLATE_SPECS, TemplateSpec, build_template_specs
+from UI.shared.utils import (
+    format_bytes,
+    format_path_for_label,
+    get_file_signature,
+    pil_to_qimage,
+    px_to_pt,
+    refresh_widget_style,
+    set_widget_font_size,
+)
 
 WINDOW_TITLE = "Photo EXIF Frame Tool"
 HEIC_AVAILABLE = getattr(processor, "pillow_heif", None) is not None
 SUPPORTED_FILTER = "Images (*.jpg *.jpeg *.png *.heic)" if HEIC_AVAILABLE else "Images (*.jpg *.jpeg *.png)"
-
-
-@dataclass(frozen=True)
-class TemplateSpec:
-    name: str
-    thumbnail_path: Path
-
-
-TEMPLATE_IMAGE_DIR = PROJECT_ROOT / "UI" / "template_images"
-FEATURED_TEMPLATE_ORDER = [
-    "背景模糊",
-    "标准水印",
-    "标准水印2",
-    "尼康专用背景模糊",
-]
-
-
-def build_template_specs() -> list[TemplateSpec]:
-    template_names = list_templates()
-    ordered_names = [name for name in FEATURED_TEMPLATE_ORDER if name in template_names]
-    ordered_names.extend(sorted(name for name in template_names if name not in ordered_names))
-    return [TemplateSpec(name, TEMPLATE_IMAGE_DIR / f"{name}.jpg") for name in ordered_names]
-
-
-TEMPLATE_SPECS = build_template_specs()
-
-
-def format_bytes(size: int) -> str:
-    units = ["B", "KB", "MB", "GB"]
-    value = float(size)
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            return f"{value:.1f}{unit}" if unit != "B" else f"{int(value)}B"
-        value /= 1024
-    return f"{size}B"
-
-
-def px_to_pt(pixels: float) -> float:
-    return round(pixels * 0.75, 2)
-
-
-def set_widget_font_size(widget: QWidget, pixel_size: float):
-    font = widget.font()
-    font.setPointSizeF(px_to_pt(pixel_size))
-    widget.setFont(font)
-
-
-def refresh_widget_style(widget: QWidget):
-    widget.style().unpolish(widget)
-    widget.style().polish(widget)
-    widget.update()
-
-
-def format_path_for_label(path: str | Path) -> tuple[str, str]:
-    resolved_path = str(Path(path).resolve())
-    display_path = resolved_path.replace("\\", "/")
-    return resolved_path, display_path
-
-
-def get_file_signature(path: str | Path) -> tuple[str, int, int]:
-    resolved_path = Path(path).resolve()
-    stat = resolved_path.stat()
-    return str(resolved_path), stat.st_mtime_ns, stat.st_size
-
-
-@lru_cache(maxsize=32)
-def get_cached_exif(resolved_path: str, modified_ns: int, file_size: int) -> dict:
-    return get_exif(resolved_path)
-
-
-@lru_cache(maxsize=16)
-def get_cached_template(template_name: str, modified_ns: int):
-    return get_template(template_name)
-
-
-def pil_to_qimage(image: Image.Image) -> QImage:
-    rgb_image = image.convert("RGB")
-    data = rgb_image.tobytes("raw", "RGB")
-    qimage = QImage(data, rgb_image.width, rgb_image.height, rgb_image.width * 3, QImage.Format_RGB888)
-    return qimage.copy()
-
-
-class TemplateRenderService:
-    _logging_ready = False
-
-    def __init__(self):
-        self.config = load_config()
-        ensure_processors_registered()
-        if not TemplateRenderService._logging_ready:
-            init_from_config(self.config)
-            TemplateRenderService._logging_ready = True
-
-    def get_exif_data(self, input_path: str | Path) -> dict:
-        resolved_path, modified_ns, file_size = get_file_signature(input_path)
-        return deepcopy(get_cached_exif(resolved_path, modified_ns, file_size))
-
-    def get_template(self, template_name: str):
-        template_path = get_template_path(template_name)
-        return get_cached_template(template_name, template_path.stat().st_mtime_ns)
-
-    def build_context(self, input_path: str, exif_data: Optional[dict] = None) -> dict:
-        path = Path(input_path).resolve()
-        return {
-            "exif": exif_data if exif_data is not None else self.get_exif_data(path),
-            "filename": path.stem,
-            "file_dir": str(path.parent).replace("\\", "/"),
-            "file_path": str(path).replace("\\", "/"),
-            "files": [str(path)],
-        }
-
-    def render_pipeline(self, input_path: str, template_name: str, exif_data: Optional[dict] = None) -> list[dict]:
-        ensure_processors_registered()
-        template = self.get_template(template_name)
-        rendered = template.render(self.build_context(input_path, exif_data=exif_data))
-        return json.loads(rendered)
-
-    def render_preview(self, input_path: str, template_name: str, exif_data: Optional[dict] = None) -> Image.Image:
-        exif = exif_data if exif_data is not None else self.get_exif_data(input_path)
-        pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
-        image = start_process(pipeline, input_path=input_path, exif_data=exif)
-        return image.copy()
-
-    def export_image(
-        self,
-        input_path: str,
-        template_name: str,
-        output_path: str,
-        quality: Optional[int] = None,
-        subsampling: Optional[int] = None,
-    ) -> str:
-        exif = self.get_exif_data(input_path)
-        pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
-        output = Path(output_path)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        save_options = {}
-        if quality is not None:
-            save_options["quality"] = quality
-        if subsampling is not None:
-            save_options["subsampling"] = subsampling
-        start_process(
-            pipeline,
-            input_path=input_path,
-            output_path=str(output),
-            exif_data=exif,
-            save_options=save_options or None,
-        )
-        return str(output)
+PREVIEW_MAX_DIMENSION = 1600
 
 
 class PreviewWorker(QObject):
@@ -287,7 +107,12 @@ class PreviewWorker(QObject):
         try:
             service = TemplateRenderService()
             exif_data = service.get_exif_data(self.input_path)
-            image = service.render_preview(self.input_path, self.template_name, exif_data=exif_data)
+            image = service.render_preview(
+                self.input_path,
+                self.template_name,
+                exif_data=exif_data,
+                max_dimension=PREVIEW_MAX_DIMENSION,
+            )
             meta = {
                 "template": self.template_name,
                 "resolution": f"{image.width}x{image.height}",

@@ -1,0 +1,70 @@
+2026-04-11 16:26:02.721 | ERROR    | __main__:run:116 - Traceback (most recent call last):
+  File "E:\Code\Project\Python\ImageEXIFStyler\UI\main.py", line 109, in run
+    image = service.render_preview(self.input_path, self.template_name, exif_data=exif_data)
+  File "E:\Code\Project\Python\ImageEXIFStyler\UI\shared\render_service.py", line 59, in render_preview
+    image = start_process(pipeline, input_path=input_path, exif_data=exif)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\core.py", line 339, in start_process
+    processor_instance.process(node)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\core.py", line 159, in wrapper
+    return original_process(self, ctx)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\filters.py", line 348, in process
+    right_logo = Image.open(ctx.get("right_logo")).convert('RGBA') if ctx.get("right_logo") else None
+  File "C:\Users\lzy\.conda\envs\ies\lib\site-packages\PIL\Image.py", line 3513, in open
+    fp = builtins.open(filename, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: 'None'
+
+2026-04-11 16:26:12.086 | ERROR    | __main__:run:116 - Traceback (most recent call last):
+  File "E:\Code\Project\Python\ImageEXIFStyler\UI\main.py", line 109, in run
+    image = service.render_preview(self.input_path, self.template_name, exif_data=exif_data)
+  File "E:\Code\Project\Python\ImageEXIFStyler\UI\shared\render_service.py", line 59, in render_preview
+    image = start_process(pipeline, input_path=input_path, exif_data=exif)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\core.py", line 339, in start_process
+    processor_instance.process(node)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\core.py", line 159, in wrapper
+    return original_process(self, ctx)
+  File "E:\Code\Project\Python\ImageEXIFStyler\processor\filters.py", line 348, in process
+    right_logo = Image.open(ctx.get("right_logo")).convert('RGBA') if ctx.get("right_logo") else None
+  File "C:\Users\lzy\.conda\envs\ies\lib\site-packages\PIL\Image.py", line 3513, in open
+    fp = builtins.open(filename, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: 'None'
+
+2026-04-11 16:46:07.467 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_标准水印2_Q100.jpg
+2026-04-11 16:46:25.247 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_标准水印_Q100.jpg
+2026-04-11 16:46:41.051 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:46:54.533 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_尼康专用背景模糊_Q100.jpg
+2026-04-11 16:52:10.996 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_标准水印2_Q100.jpg
+2026-04-11 16:52:40.015 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20251127_黑日_1_背景模糊_Q100.jpg
+2026-04-11 16:52:45.748 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊_Q100.jpg
+2026-04-11 16:52:50.943 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6303_背景模糊_Q100.jpg
+2026-04-11 16:52:56.645 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊_Q100.jpg
+2026-04-11 16:53:02.362 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:53:07.174 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊_Q100.jpg
+2026-04-11 16:53:12.620 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_校园_猫_1_背景模糊_Q100.jpg
+2026-04-11 16:57:46.659 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20251127_黑日_1_背景模糊_Q100.jpg
+2026-04-11 16:57:46.659 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20251127_黑日_1_背景模糊_Q100.jpg
+2026-04-11 16:57:46.659 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20251127_黑日_1_背景模糊_Q100.jpg
+2026-04-11 16:57:46.659 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20251127_黑日_1_背景模糊_Q100.jpg
+2026-04-11 16:57:47.787 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6303_背景模糊_Q100.jpg
+2026-04-11 16:57:47.787 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6303_背景模糊_Q100.jpg
+2026-04-11 16:57:47.787 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6303_背景模糊_Q100.jpg
+2026-04-11 16:57:47.787 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6303_背景模糊_Q100.jpg
+2026-04-11 16:57:48.116 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊_Q100.jpg
+2026-04-11 16:57:48.116 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊_Q100.jpg
+2026-04-11 16:57:48.116 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊_Q100.jpg
+2026-04-11 16:57:48.116 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊_Q100.jpg
+2026-04-11 16:57:48.455 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊_Q100.jpg
+2026-04-11 16:57:48.455 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊_Q100.jpg
+2026-04-11 16:57:48.455 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊_Q100.jpg
+2026-04-11 16:57:48.455 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊_Q100.jpg
+2026-04-11 16:57:58.903 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:57:58.903 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:57:58.903 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:57:58.903 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊_Q100.jpg
+2026-04-11 16:57:59.285 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊_Q100.jpg
+2026-04-11 16:57:59.285 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊_Q100.jpg
+2026-04-11 16:57:59.285 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊_Q100.jpg
+2026-04-11 16:57:59.285 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊_Q100.jpg
+2026-04-11 16:57:59.746 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_校园_猫_1_背景模糊_Q100.jpg
+2026-04-11 16:57:59.746 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_校园_猫_1_背景模糊_Q100.jpg
+2026-04-11 16:57:59.746 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_校园_猫_1_背景模糊_Q100.jpg
+2026-04-11 16:57:59.746 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_校园_猫_1_背景模糊_Q100.jpg

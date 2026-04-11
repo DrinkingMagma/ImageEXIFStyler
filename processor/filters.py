@@ -70,15 +70,35 @@ class TrimFilter(FilterProcessor):
     threshold: float = 10.0,
     padding: int = 0
 
+    @staticmethod
+    def _as_bool(value) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() not in {"", "0", "false", "no", "off"}
+        return bool(value)
+
     def process(self, ctx: PipelineContext):
+        trim_left = self._as_bool(ctx.get("trim_left", True))
+        trim_right = self._as_bool(ctx.get("trim_right", True))
+        trim_top = self._as_bool(ctx.get("trim_top", True))
+        trim_bottom = self._as_bool(ctx.get("trim_bottom", True))
+
+        if not any([trim_left, trim_right, trim_top, trim_bottom]):
+            ctx.update_buffer(ctx.get_buffer()).save_buffer(self.name()).success()
+            return
+
         buffer = []
         for image in ctx.get_buffer():
             if image.height * image.width == 0:
                 continue
-            bbox = self.get_foreground_bbox(image, trim_left=ctx.get("trim_left", True),
-                                            trim_right=ctx.get("trim_right", True),
-                                            trim_top=ctx.get("trim_top", True),
-                                            trim_bottom=ctx.get("trim_bottom", True))
+            bbox = self.get_foreground_bbox(
+                image,
+                trim_left=trim_left,
+                trim_right=trim_right,
+                trim_top=trim_top,
+                trim_bottom=trim_bottom,
+            )
             buffer.append(image.crop(bbox))
         ctx.update_buffer(buffer).save_buffer(self.name()).success()
 
@@ -323,6 +343,16 @@ class MarginWithRatioFilter(FilterProcessor):
 
 
 class WatermarkFilter(FilterProcessor):
+    @staticmethod
+    def _logo_path(value) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            if not value or value.lower() in {"none", "null"}:
+                return None
+        return value
+
     def process(self, ctx: PipelineContext):
         img = ctx.get_buffer()[0]
         color = ctx.get("color", "white")
@@ -344,9 +374,12 @@ class WatermarkFilter(FilterProcessor):
         right_top = start_process([ctx.get("right_top")])
         right_bottom = start_process([ctx.get("right_bottom")])
 
-        left_logo = Image.open(ctx.get("left_logo")).convert('RGBA') if ctx.get("left_logo") else None
-        right_logo = Image.open(ctx.get("right_logo")).convert('RGBA') if ctx.get("right_logo") else None
-        center_logo = Image.open(ctx.get("center_logo")).convert('RGBA') if ctx.get("center_logo") else None
+        left_logo_path = self._logo_path(ctx.get("left_logo"))
+        right_logo_path = self._logo_path(ctx.get("right_logo"))
+        center_logo_path = self._logo_path(ctx.get("center_logo"))
+        left_logo = Image.open(left_logo_path).convert('RGBA') if left_logo_path else None
+        right_logo = Image.open(right_logo_path).convert('RGBA') if right_logo_path else None
+        center_logo = Image.open(center_logo_path).convert('RGBA') if center_logo_path else None
         center_logo_height = ctx.getint("center_logo_height")
 
         canvas_width = img.width + left_margin + right_margin
