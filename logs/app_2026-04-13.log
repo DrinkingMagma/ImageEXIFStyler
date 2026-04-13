@@ -1,0 +1,153 @@
+2026-04-13 14:35:44.709 | INFO     | UI.shared.render_service:export_image:290 - Export started | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260322江心洲.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊（尼康专用）_Q100.jpg | template=背景模糊（尼康专用） | quality=100 | subsampling=2 | exif={"ApertureValue": 5.310704, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:29 21:11:22", "DateTimeDigitized": "2026:03:22 11:06:00", "DateTimeOriginal": "2026:03:22 11:06:00", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 0, "ExposureTime": "1/500", "FNumber": "F6.3", "FileSource": "\u0003", "Flash": 24, "FocalLength": "250mm", "FocalLengthIn35mmFilm": 375, "FocalLengthIn35mmFormat": "375mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "110", "ISOSpeedRatings": "110", "ImageHeight": 3712, "ImageSize": "5568 x 3712", "ImageWidth": 5568, "LensMake": "NIKON", "LensModel": "NIKKOR Z DX 50-250mm f/4.5-6.3 VR", "LensSerialNumber": "20356090", "LensSpecification": [50.0, 250.0, 4.5, 6.3], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 110, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/500", "ShutterSpeedValue": "1/500", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "32", "SubsecTimeOriginal": "32", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0}
+2026-04-13 14:35:50.308 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊（尼康专用）_Q100.jpg
+2026-04-13 14:35:50.315 | SUCCESS  | UI.shared.render_service:export_image:319 - Export completed | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260322江心洲.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260322江心洲_背景模糊（尼康专用）_Q100.jpg | template=背景模糊（尼康专用） | quality=100 | subsampling=2 | exif={"ApertureValue": 5.310704, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:29 21:11:22", "DateTimeDigitized": "2026:03:22 11:06:00", "DateTimeOriginal": "2026:03:22 11:06:00", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 0, "ExposureTime": "1/500", "FNumber": "F6.3", "FileSource": "\u0003", "Flash": 24, "FocalLength": "250mm", "FocalLengthIn35mmFilm": 375, "FocalLengthIn35mmFormat": "375mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "110", "ISOSpeedRatings": "110", "ImageHeight": 3712, "ImageSize": "5568 x 3712", "ImageWidth": 5568, "LensMake": "NIKON", "LensModel": "NIKKOR Z DX 50-250mm f/4.5-6.3 VR", "LensSerialNumber": "20356090", "LensSpecification": [50.0, 250.0, 4.5, 6.3], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 110, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/500", "ShutterSpeedValue": "1/500", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "32", "SubsecTimeOriginal": "32", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0} | output_size=9402736
+2026-04-13 14:36:00.967 | INFO     | UI.shared.render_service:export_image:290 - Export started | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6472.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊（无EXIF）_Q100.jpg | template=背景模糊（无EXIF） | quality=100 | subsampling=2 | exif={"ApertureValue": 1.695994, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:28 14:57:44", "DateTimeDigitized": "2026:03:28 09:57:43", "DateTimeOriginal": "2026:03:28 09:57:43", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 3, "ExposureTime": "1/3200", "FNumber": "F1.8", "FileSource": "\u0003", "Flash": 16, "FocalLength": "50mm", "FocalLengthIn35mmFilm": 75, "FocalLengthIn35mmFormat": "75mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "100", "ISOSpeedRatings": "100", "ImageHeight": 2788, "ImageSize": "4956 x 2788", "ImageWidth": 4956, "LensModel": "50 1.8Z DF", "LensSerialNumber": "0", "LensSpecification": [50.0, 50.0, 1.8, 1.8], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 100, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/3200", "ShutterSpeedValue": "1/3200", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "70", "SubsecTimeOriginal": "70", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0}
+2026-04-13 14:36:00.968 | INFO     | UI.shared.render_service:export_image:290 - Export started | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6400.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊（无EXIF）_Q100.jpg | template=背景模糊（无EXIF） | quality=100 | subsampling=2 | exif={"ApertureValue": 1.695994, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:28 14:57:44", "DateTimeDigitized": "2026:03:28 09:24:26", "DateTimeOriginal": "2026:03:28 09:24:26", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 3, "ExposureTime": "1/2000", "FNumber": "F1.8", "FileSource": "\u0003", "Flash": 16, "FocalLength": "50mm", "FocalLengthIn35mmFilm": 75, "FocalLengthIn35mmFormat": "75mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "100", "ISOSpeedRatings": "100", "ImageHeight": 3712, "ImageSize": "5568 x 3712", "ImageWidth": 5568, "LensModel": "50 1.8Z DF", "LensSerialNumber": "0", "LensSpecification": [50.0, 50.0, 1.8, 1.8], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 100, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/2000", "ShutterSpeedValue": "1/2000", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "27", "SubsecTimeOriginal": "27", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0}
+2026-04-13 14:36:02.636 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊（无EXIF）_Q100.jpg
+2026-04-13 14:36:02.639 | SUCCESS  | UI.shared.render_service:export_image:319 - Export completed | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6472.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6472_背景模糊（无EXIF）_Q100.jpg | template=背景模糊（无EXIF） | quality=100 | subsampling=2 | exif={"ApertureValue": 1.695994, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:28 14:57:44", "DateTimeDigitized": "2026:03:28 09:57:43", "DateTimeOriginal": "2026:03:28 09:57:43", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 3, "ExposureTime": "1/3200", "FNumber": "F1.8", "FileSource": "\u0003", "Flash": 16, "FocalLength": "50mm", "FocalLengthIn35mmFilm": 75, "FocalLengthIn35mmFormat": "75mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "100", "ISOSpeedRatings": "100", "ImageHeight": 2788, "ImageSize": "4956 x 2788", "ImageWidth": 4956, "LensModel": "50 1.8Z DF", "LensSerialNumber": "0", "LensSpecification": [50.0, 50.0, 1.8, 1.8], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 100, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/3200", "ShutterSpeedValue": "1/3200", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "70", "SubsecTimeOriginal": "70", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0} | output_size=5667399
+2026-04-13 14:36:03.477 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊（无EXIF）_Q100.jpg
+2026-04-13 14:36:03.481 | SUCCESS  | UI.shared.render_service:export_image:319 - Export completed | source=E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6400.jpg | output=E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6400_背景模糊（无EXIF）_Q100.jpg | template=背景模糊（无EXIF） | quality=100 | subsampling=2 | exif={"ApertureValue": 1.695994, "BodySerialNumber": "8067398", "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002", "ColorSpace": 1, "Contrast": 0, "CustomRendered": 1, "DateTime": "2026:03:28 14:57:44", "DateTimeDigitized": "2026:03:28 09:24:26", "DateTimeOriginal": "2026:03:28 09:24:26", "ExifOffset": 226, "ExifVersion": "0231", "ExposureBiasValue": 0.0, "ExposureMode": 0, "ExposureProgram": 3, "ExposureTime": "1/2000", "FNumber": "F1.8", "FileSource": "\u0003", "Flash": 16, "FocalLength": "50mm", "FocalLengthIn35mmFilm": 75, "FocalLengthIn35mmFormat": "75mm", "FocalPlaneResolutionUnit": 3, "FocalPlaneXResolution": 2367.8104248046875, "FocalPlaneYResolution": 2367.8104248046875, "GainControl": 0, "ISO": "100", "ISOSpeedRatings": "100", "ImageHeight": 3712, "ImageSize": "5568 x 3712", "ImageWidth": 5568, "LensModel": "50 1.8Z DF", "LensSerialNumber": "0", "LensSpecification": [50.0, 50.0, 1.8, 1.8], "LightSource": 0, "Make": "NIKON", "MeteringMode": 5, "Model": "Z 50", "OffsetTime": "+08:00", "OffsetTimeDigitized": "+08:00", "OffsetTimeOriginal": "+08:00", "RecommendedExposureIndex": 100, "ResolutionUnit": 2, "Saturation": 0, "SceneCaptureType": 0, "SceneType": "\u0001", "SensingMethod": 2, "SensitivityType": 2, "Sharpness": 0, "ShutterSpeed": "1/2000", "ShutterSpeedValue": "1/2000", "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)", "SubjectDistanceRange": 0, "SubsecTimeDigitized": "27", "SubsecTimeOriginal": "27", "WhiteBalance": 0, "XResolution": 240.0, "YResolution": 240.0} | output_size=8977201
+2026-04-13 14:50:16.818 | INFO     | UI.shared.render_service:export_image:299 - Export started
+  source: E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6368.jpg
+  output: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊（无EXIF）_Q100.jpg
+  template: 背景模糊（无EXIF）
+  quality: 100
+  subsampling: 2
+  exif:
+    {
+      "ApertureValue": 1.695994,
+      "BodySerialNumber": "8067398",
+      "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002",
+      "ColorSpace": 1,
+      "Contrast": 0,
+      "CustomRendered": 1,
+      "DateTime": "2026:03:28 14:57:13",
+      "DateTimeDigitized": "2026:03:28 08:55:20",
+      "DateTimeOriginal": "2026:03:28 08:55:20",
+      "ExifOffset": 226,
+      "ExifVersion": "0231",
+      "ExposureBiasValue": 0.0,
+      "ExposureMode": 0,
+      "ExposureProgram": 3,
+      "ExposureTime": "1/2000",
+      "FNumber": "F1.8",
+      "FileSource": "\u0003",
+      "Flash": 16,
+      "FocalLength": "50mm",
+      "FocalLengthIn35mmFilm": 75,
+      "FocalLengthIn35mmFormat": "75mm",
+      "FocalPlaneResolutionUnit": 3,
+      "FocalPlaneXResolution": 2367.8104248046875,
+      "FocalPlaneYResolution": 2367.8104248046875,
+      "GainControl": 0,
+      "ISO": "100",
+      "ISOSpeedRatings": "100",
+      "ImageHeight": 3712,
+      "ImageSize": "5568 x 3712",
+      "ImageWidth": 5568,
+      "LensModel": "50 1.8Z DF",
+      "LensSerialNumber": "0",
+      "LensSpecification": [
+        50.0,
+        50.0,
+        1.8,
+        1.8
+      ],
+      "LightSource": 0,
+      "Make": "NIKON",
+      "MeteringMode": 5,
+      "Model": "Z 50",
+      "OffsetTime": "+08:00",
+      "OffsetTimeDigitized": "+08:00",
+      "OffsetTimeOriginal": "+08:00",
+      "RecommendedExposureIndex": 100,
+      "ResolutionUnit": 2,
+      "Saturation": 0,
+      "SceneCaptureType": 0,
+      "SceneType": "\u0001",
+      "SensingMethod": 2,
+      "SensitivityType": 2,
+      "Sharpness": 0,
+      "ShutterSpeed": "1/2000",
+      "ShutterSpeedValue": "1/2000",
+      "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)",
+      "SubjectDistanceRange": 0,
+      "SubsecTimeDigitized": "72",
+      "SubsecTimeOriginal": "72",
+      "WhiteBalance": 0,
+      "XResolution": 240.0,
+      "YResolution": 240.0
+    }
+2026-04-13 14:50:19.264 | SUCCESS  | processor.core:start_process:361 - Generated new image: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊（无EXIF）_Q100.jpg
+2026-04-13 14:50:19.269 | SUCCESS  | UI.shared.render_service:export_image:328 - Export completed
+  source: E:\Code\Project\Python\ImageEXIFStyler\input\20260328_6368.jpg
+  output: E:\Code\Project\Python\ImageEXIFStyler\output\20260328_6368_背景模糊（无EXIF）_Q100.jpg
+  template: 背景模糊（无EXIF）
+  quality: 100
+  subsampling: 2
+  output_size: 9659231
+  exif:
+    {
+      "ApertureValue": 1.695994,
+      "BodySerialNumber": "8067398",
+      "CFAPattern": "\u0002\u0000\u0002\u0000\u0000\u0001\u0001\u0002",
+      "ColorSpace": 1,
+      "Contrast": 0,
+      "CustomRendered": 1,
+      "DateTime": "2026:03:28 14:57:13",
+      "DateTimeDigitized": "2026:03:28 08:55:20",
+      "DateTimeOriginal": "2026:03:28 08:55:20",
+      "ExifOffset": 226,
+      "ExifVersion": "0231",
+      "ExposureBiasValue": 0.0,
+      "ExposureMode": 0,
+      "ExposureProgram": 3,
+      "ExposureTime": "1/2000",
+      "FNumber": "F1.8",
+      "FileSource": "\u0003",
+      "Flash": 16,
+      "FocalLength": "50mm",
+      "FocalLengthIn35mmFilm": 75,
+      "FocalLengthIn35mmFormat": "75mm",
+      "FocalPlaneResolutionUnit": 3,
+      "FocalPlaneXResolution": 2367.8104248046875,
+      "FocalPlaneYResolution": 2367.8104248046875,
+      "GainControl": 0,
+      "ISO": "100",
+      "ISOSpeedRatings": "100",
+      "ImageHeight": 3712,
+      "ImageSize": "5568 x 3712",
+      "ImageWidth": 5568,
+      "LensModel": "50 1.8Z DF",
+      "LensSerialNumber": "0",
+      "LensSpecification": [
+        50.0,
+        50.0,
+        1.8,
+        1.8
+      ],
+      "LightSource": 0,
+      "Make": "NIKON",
+      "MeteringMode": 5,
+      "Model": "Z 50",
+      "OffsetTime": "+08:00",
+      "OffsetTimeDigitized": "+08:00",
+      "OffsetTimeOriginal": "+08:00",
+      "RecommendedExposureIndex": 100,
+      "ResolutionUnit": 2,
+      "Saturation": 0,
+      "SceneCaptureType": 0,
+      "SceneType": "\u0001",
+      "SensingMethod": 2,
+      "SensitivityType": 2,
+      "Sharpness": 0,
+      "ShutterSpeed": "1/2000",
+      "ShutterSpeedValue": "1/2000",
+      "Software": "Adobe Photoshop Lightroom Classic 13.2 (Windows)",
+      "SubjectDistanceRange": 0,
+      "SubsecTimeDigitized": "72",
+      "SubsecTimeOriginal": "72",
+      "WhiteBalance": 0,
+      "XResolution": 240.0,
+      "YResolution": 240.0
+    }

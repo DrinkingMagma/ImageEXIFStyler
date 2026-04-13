@@ -5,6 +5,7 @@
 """
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -53,8 +54,8 @@ if _loguru_logger is not None:
         log_dir: str = "logs",
         rotation: str = "00:00",
         retention: str = "10 days",
-        compression: str = "zip",
-        enable_console: bool = True,
+        compression=None,
+        enable_console: bool = False,
         enable_file: bool = True,
     ):
         log_path = Path(log_dir)
@@ -85,16 +86,6 @@ if _loguru_logger is not None:
                 backtrace=True,
                 diagnose=True,
             )
-            logger.add(
-                log_path / "error_{time:YYYY-MM-DD}.log",
-                level="ERROR",
-                format=FILE_FORMAT,
-                rotation=rotation,
-                retention=retention,
-                compression=compression,
-                encoding="utf-8",
-                enqueue=True,
-            )
 
         logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -102,6 +93,59 @@ if _loguru_logger is not None:
 
 
 else:
+    class _DailyFileHandler(logging.Handler):
+        """
+        标准 logging 的按天文件处理器。
+
+        loguru 可直接用文件名中的时间占位和 rotation；fallback 下手动按日期切换，
+        保持当前日志文件名为 app_YYYY-MM-DD.log。
+        """
+
+        def __init__(self, log_dir: Path, encoding: str = "utf-8"):
+            super().__init__()
+            self.log_dir = log_dir
+            self.encoding = encoding
+            self.current_date = None
+            self._handler = None
+
+        def _ensure_handler(self):
+            today = datetime.now().strftime("%Y-%m-%d")
+            if self._handler is not None and self.current_date == today:
+                return
+
+            if self._handler is not None:
+                self._handler.close()
+
+            self.current_date = today
+            self._handler = logging.FileHandler(
+                self.log_dir / f"app_{today}.log",
+                encoding=self.encoding,
+            )
+            self._handler.setLevel(self.level)
+            if self.formatter is not None:
+                self._handler.setFormatter(self.formatter)
+
+        def setLevel(self, level):
+            super().setLevel(level)
+            if self._handler is not None:
+                self._handler.setLevel(level)
+
+        def setFormatter(self, fmt):
+            super().setFormatter(fmt)
+            if self._handler is not None:
+                self._handler.setFormatter(fmt)
+
+        def emit(self, record):
+            self._ensure_handler()
+            self._handler.emit(record)
+
+        def close(self):
+            if self._handler is not None:
+                self._handler.close()
+                self._handler = None
+            super().close()
+
+
     class _FallbackLogger:
         def __init__(self):
             self._logger = logging.getLogger("ImageEXIFStyler")
@@ -144,8 +188,8 @@ else:
         log_dir: str = "logs",
         rotation: str = "00:00",
         retention: str = "10 days",
-        compression: str = "zip",
-        enable_console: bool = True,
+        compression=None,
+        enable_console: bool = False,
         enable_file: bool = True,
     ):
         del rotation, retention, compression
@@ -165,14 +209,9 @@ else:
             root_logger.addHandler(console_handler)
 
         if enable_file:
-            app_handler = logging.FileHandler(log_path / "app.log", encoding="utf-8")
+            app_handler = _DailyFileHandler(log_path, encoding="utf-8")
             app_handler.setFormatter(formatter)
             root_logger.addHandler(app_handler)
-
-            error_handler = logging.FileHandler(log_path / "error.log", encoding="utf-8")
-            error_handler.setLevel(logging.ERROR)
-            error_handler.setFormatter(formatter)
-            root_logger.addHandler(error_handler)
 
         logging.getLogger("urllib3").setLevel(logging.WARNING)
         return logger
@@ -184,7 +223,7 @@ def init_from_config(config):
     """
     debug_mode = config.getboolean("DEFAULT", "debug", fallback=False)
     log_level = "DEBUG" if debug_mode else "INFO"
-    return setup_logging(log_level=log_level)
+    return setup_logging(log_level=log_level, enable_console=False)
 
 
 __all__ = ["logger", "setup_logging", "init_from_config"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import traceback
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
@@ -14,10 +15,11 @@ from UI.shared.paths import configure_project_root
 configure_project_root()
 
 from core.configs import load_config
-from core.logger import init_from_config
+from core.logger import init_from_config, logger
 from core.util import get_template_path
 from processor import ensure_processors_registered
 from processor.core import start_process
+from UI.shared.logging_utils import format_log_message
 from UI.shared.utils import get_cached_exif, get_cached_template, get_file_signature
 
 
@@ -86,6 +88,46 @@ class TemplateRenderService:
             self.build_context(input_path, exif_data=exif_data, render_input_path=render_input_path)
         )
         return json.loads(rendered)
+
+    @staticmethod
+    def _exif_for_log(exif_data: Optional[dict]) -> str:
+        return json.dumps(exif_data or {}, ensure_ascii=False, sort_keys=True, indent=2, default=str)
+
+    def _resolve_export_quality(self, quality: Optional[int]) -> Optional[int]:
+        if quality is not None:
+            return int(quality)
+        return self.config.getint("DEFAULT", "quality", fallback=None)
+
+    def _resolve_export_subsampling(self, subsampling: Optional[int]) -> Optional[int]:
+        if subsampling is not None:
+            return int(subsampling)
+        return self.config.getint("DEFAULT", "subsampling", fallback=None)
+
+    def _export_log_message(
+        self,
+        title: str,
+        input_path: str,
+        output_path: Path,
+        template_name: str,
+        quality: Optional[int],
+        subsampling: Optional[int],
+        exif_data: Optional[dict],
+        extra_fields: Optional[dict] = None,
+        extra_blocks: Optional[dict] = None,
+    ) -> str:
+        fields = {
+            "source": Path(input_path).resolve(),
+            "output": output_path.resolve(),
+            "template": template_name,
+            "quality": quality if quality is not None else "default",
+            "subsampling": subsampling if subsampling is not None else "default",
+        }
+        if extra_fields:
+            fields.update(extra_fields)
+        blocks = {"exif": self._exif_for_log(exif_data)}
+        if extra_blocks:
+            blocks.update(extra_blocks)
+        return format_log_message(title, fields, blocks)
 
     def _prepare_preview_image(
         self,
@@ -244,21 +286,70 @@ class TemplateRenderService:
         output_path: str,
         quality: Optional[int] = None,
         subsampling: Optional[int] = None,
+        exif_data: Optional[dict] = None,
     ) -> str:
-        exif = self.get_exif_data(input_path)
-        pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
         output = Path(output_path)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        save_options = {}
-        if quality is not None:
-            save_options["quality"] = quality
-        if subsampling is not None:
-            save_options["subsampling"] = subsampling
-        start_process(
-            pipeline,
-            input_path=input_path,
-            output_path=str(output),
-            exif_data=exif,
-            save_options=save_options or None,
-        )
-        return str(output)
+        exif = exif_data
+        resolved_quality = self._resolve_export_quality(quality)
+        resolved_subsampling = self._resolve_export_subsampling(subsampling)
+        try:
+            if exif is None:
+                exif = self.get_exif_data(input_path)
+
+            logger.info(
+                self._export_log_message(
+                    "Export started",
+                    input_path,
+                    output,
+                    template_name,
+                    resolved_quality,
+                    resolved_subsampling,
+                    exif,
+                )
+            )
+
+            pipeline = self.render_pipeline(input_path, template_name, exif_data=exif)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            save_options = {}
+            if resolved_quality is not None:
+                save_options["quality"] = resolved_quality
+            if resolved_subsampling is not None:
+                save_options["subsampling"] = resolved_subsampling
+
+            start_process(
+                pipeline,
+                input_path=input_path,
+                output_path=str(output),
+                exif_data=exif,
+                save_options=save_options or None,
+            )
+
+            output_size = output.stat().st_size if output.exists() else 0
+            logger.success(
+                self._export_log_message(
+                    "Export completed",
+                    input_path,
+                    output,
+                    template_name,
+                    resolved_quality,
+                    resolved_subsampling,
+                    exif,
+                    extra_fields={"output_size": output_size},
+                )
+            )
+            return str(output)
+        except Exception as exc:
+            logger.error(
+                self._export_log_message(
+                    "Export failed",
+                    input_path,
+                    output,
+                    template_name,
+                    resolved_quality,
+                    resolved_subsampling,
+                    exif,
+                    extra_fields={"error": exc},
+                    extra_blocks={"traceback": traceback.format_exc()},
+                )
+            )
+            raise
