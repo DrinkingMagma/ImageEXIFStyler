@@ -1,10 +1,11 @@
 # 核心功能来源声明
 
 本项目的核心图片处理、EXIF水印、品牌Logo与模板化处理思路及代码实现来源于 [leslievan/semi-utils](https://github.com/leslievan/semi-utils)。当前仓库在此基础上整理为一个面向本地使用的桌面应用，重点补充了图形界面以及 Windows 打包流程。
+注：UI设计基于[Stitch](https://stitch.withgoogle.com/)，代码实现基于[Codex Cli](https://github.com/openai/codex)以及[Trae CN](https://www.trae.cn/)
 
 # ImageEXIFStyler
 
-ImageEXIFStyler 是一个用于给照片生成 EXIF 信息边框、水印和展示版式的 Python 桌面工具。它会读取图片中的 EXIF 信息，结合本地 JSON 模板渲染图片，并支持单张预览导出和批量处理。[解压即用]()
+ImageEXIFStyler 是一个用于给照片生成 EXIF 信息边框、水印和展示版式的 Python 桌面工具。它会读取图片中的 EXIF 信息，结合本地 JSON 模板渲染图片，并支持单张预览导出和批量处理。[解压即用](https://github.com/DrinkingMagma/ImageEXIFStyler/releases)
 
 项目适合以下场景：
 
