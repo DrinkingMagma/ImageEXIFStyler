@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from core import PROJECT_ROOT
+
 UI_ROOT = PROJECT_ROOT / "UI"
 TEMPLATE_IMAGE_DIR = UI_ROOT / "template_images"
+_BRAND_LOGO_CANDIDATES = (
+    UI_ROOT / "logo.avg",
+    UI_ROOT / "logo.svg",
+    UI_ROOT / "logo.ico",
+    UI_ROOT / "logo.png",
+    UI_ROOT / "logo.jpg",
+    UI_ROOT / "logo.jpeg",
+)
+BRAND_LOGO_PATH = next((path for path in _BRAND_LOGO_CANDIDATES if path.exists()), _BRAND_LOGO_CANDIDATES[0])
 
 
 def configure_project_root() -> None:

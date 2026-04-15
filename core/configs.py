@@ -1,16 +1,11 @@
 import configparser
 from pathlib import Path
 
-try:
-    import tomllib as tomli
-except ModuleNotFoundError:
-    import tomli
+from core import CONFIG_PATH, PROJECT_ROOT
 
-from core import CONFIG_PATH, PROJECT_INFO
-
-fonts_dir = Path('config/fonts')
-logos_dir = Path('./config/logos')
-templates_dir = Path('./config/templates')
+fonts_dir = PROJECT_ROOT / "config" / "fonts"
+logos_dir = PROJECT_ROOT / "config" / "logos"
+templates_dir = PROJECT_ROOT / "config" / "templates"
 
 def load_config() -> configparser.ConfigParser:
     config = configparser.ConfigParser()
@@ -23,9 +18,3 @@ def save_config(config: configparser.ConfigParser) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     with config_path.open('w', encoding='utf-8') as f:
         config.write(f)
-
-
-def load_project_info():
-    with open(PROJECT_INFO, "rb") as f:  # 注意：tomllib 需要以二进制模式（"rb"）打开文件
-        data = tomli.load(f)
-    return data

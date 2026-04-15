@@ -20,6 +20,27 @@ EDITOR_STYLESHEET = """
             QLabel#topHint {
                 color: #6b7280;
                 font-weight: 700;
+                padding-right: 12px;
+            }
+            QLabel#topLogo {
+                background: transparent;
+            }
+            QPushButton#windowCloseButton {
+                border: none;
+                border-radius: 0;
+                padding: 0;
+                margin: 0;
+                background: #050505;
+                color: #9ca3af;
+                font-weight: 800;
+            }
+            QPushButton#windowCloseButton:hover {
+                background: #5b1f21;
+                color: #ffe6e5;
+            }
+            QPushButton#windowCloseButton:pressed {
+                background: #491719;
+                color: #fff2f1;
             }
             QFrame#leftSidebar {
                 background: #020202;

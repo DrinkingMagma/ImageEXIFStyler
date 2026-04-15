@@ -18,13 +18,15 @@ from UI.shared.theme import EDITOR_STYLESHEET
 from UI.template_library.page import TemplateLibraryPageMixin
 from UI.template_library.widgets import TemplateLibraryCard
 from UI.editor.workers import ExportWorker, PreviewWorker
-from UI.shared.paths import PROJECT_ROOT
+from UI.shared.paths import BRAND_LOGO_PATH, PROJECT_ROOT
 from UI.shared.qt import (
     ALIGN_CENTER,
     ALIGN_LEFT,
     ALIGN_RIGHT,
+    FRAMELESS_WINDOW_HINT,
     HORIZONTAL,
     KEEP_ASPECT_RATIO,
+    LEFT_MOUSE_BUTTON,
     PLAIN_TEXT,
     POINTING_HAND_CURSOR,
     QT_BINDING,
@@ -33,17 +35,20 @@ from UI.shared.qt import (
     TEXT_SELECTABLE_BY_MOUSE,
     QButtonGroup,
     QComboBox,
+    QEvent,
     QFileDialog,
     QFont,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QIcon,
     QImage,
     QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
     QMessageBox,
+    QPoint,
     QPixmap,
     QPushButton,
     QScrollArea,
@@ -58,6 +63,7 @@ from UI.shared.qt import (
 from UI.shared.templates import TEMPLATE_SPECS, build_template_specs
 from UI.shared.utils import (
     format_bytes,
+    event_global_pos,
     format_path_for_label,
     get_file_signature,
     refresh_widget_style,
@@ -69,6 +75,9 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{WINDOW_TITLE} ({QT_BINDING})")
+        if BRAND_LOGO_PATH.exists():
+            self.setWindowIcon(QIcon(str(BRAND_LOGO_PATH)))
+        self.setWindowFlags(self.windowFlags() | FRAMELESS_WINDOW_HINT)
         self.resize(1520, 800)
         self.setMinimumSize(1520, 800)
 
@@ -81,6 +90,7 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         self.preview_cache: OrderedDict[tuple[str, int, int, str], tuple[QPixmap, dict]] = OrderedDict()
         self.displayed_preview_template: Optional[str] = None
         self._pending_footer_meta = ("--", "--", "--")
+        self._window_drag_offset: Optional[QPoint] = None
         self.output_dir_setting = str((PROJECT_ROOT / config.get("DEFAULT", "output_folder", fallback="./output")).resolve())
         self.export_quality_setting = config.getint("DEFAULT", "quality", fallback=90)
         self.export_subsampling_setting = config.getint("DEFAULT", "subsampling", fallback=2)
@@ -137,13 +147,36 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         root_layout.addWidget(self._build_footer())
         self.setCentralWidget(central)
 
+    def _build_brand_logo_label(self, size: int, object_name: str) -> Optional[QLabel]:
+        if not BRAND_LOGO_PATH.exists():
+            return None
+
+        pixmap = QPixmap(str(BRAND_LOGO_PATH))
+        if pixmap.isNull():
+            return None
+
+        label = QLabel()
+        label.setObjectName(object_name)
+        label.setAlignment(ALIGN_CENTER)
+        label.setFixedSize(size, size)
+        label.setToolTip(WINDOW_TITLE)
+        label.setPixmap(pixmap.scaled(size, size, KEEP_ASPECT_RATIO, SMOOTH_TRANSFORMATION))
+        return label
+
     def _build_top_bar(self) -> QWidget:
         bar = QFrame()
         bar.setObjectName("topBar")
-        bar.setFixedHeight(52)
+        bar.setFixedHeight(32)
+        self.top_bar = bar
 
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(24, 0, 24, 0)
+        layout.setContentsMargins(18, 0, 0, 0)
+        layout.setSpacing(0)
+
+        top_logo = self._build_brand_logo_label(20, "topLogo")
+        if top_logo is not None:
+            layout.addWidget(top_logo, 0, ALIGN_LEFT)
+            layout.addSpacing(8)
 
         title = QLabel("PHOTO EXIF FRAME TOOL")
         title.setObjectName("topTitle")
@@ -155,6 +188,21 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         self.top_hint_label.setObjectName("topHint")
         set_widget_font_size(self.top_hint_label, 11)
         layout.addWidget(self.top_hint_label, 0, ALIGN_RIGHT)
+
+        self.window_close_button = QPushButton("X")
+        self.window_close_button.setObjectName("windowCloseButton")
+        self.window_close_button.setFixedSize(32, 32)
+        self.window_close_button.setCursor(POINTING_HAND_CURSOR)
+        self.window_close_button.setToolTip("Close")
+        set_widget_font_size(self.window_close_button, 12)
+        self.window_close_button.clicked.connect(self.close)
+        layout.addWidget(self.window_close_button, 0, ALIGN_RIGHT)
+
+        self._title_bar_drag_targets = [bar, title, self.top_hint_label]
+        if top_logo is not None:
+            self._title_bar_drag_targets.append(top_logo)
+        for drag_target in self._title_bar_drag_targets:
+            drag_target.installEventFilter(self)
         return bar
 
     def _build_left_sidebar(self) -> QWidget:
@@ -165,16 +213,6 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         layout = QVBoxLayout(sidebar)
         layout.setContentsMargins(20, 24, 20, 24)
         layout.setSpacing(10)
-
-        title = QLabel("LENS & FRAME")
-        title.setObjectName("sidebarTitle")
-        set_widget_font_size(title, 18)
-        subtitle = QLabel("Professional Curator")
-        subtitle.setObjectName("sidebarSubtitle")
-        set_widget_font_size(subtitle, 10)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addSpacing(22)
 
         nav_items = [
             ("editor", "编辑器", True),
@@ -402,6 +440,23 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
     def _apply_theme(self):
         self.setFont(QFont("Microsoft YaHei UI", 10))
         self.setStyleSheet(EDITOR_STYLESHEET)
+
+    def eventFilter(self, watched, event):
+        if watched in getattr(self, "_title_bar_drag_targets", ()):
+            event_type = event.type()
+            if event_type == QEvent.MouseButtonPress and event.button() == LEFT_MOUSE_BUTTON:
+                self._window_drag_offset = event_global_pos(event) - self.frameGeometry().topLeft()
+                event.accept()
+                return True
+            if event_type == QEvent.MouseMove and self._window_drag_offset is not None:
+                self.move(event_global_pos(event) - self._window_drag_offset)
+                event.accept()
+                return True
+            if event_type == QEvent.MouseButtonRelease and self._window_drag_offset is not None:
+                self._window_drag_offset = None
+                event.accept()
+                return True
+        return super().eventFilter(watched, event)
 
     def _template_names(self) -> list[str]:
         return [spec.name for spec in self.template_specs]

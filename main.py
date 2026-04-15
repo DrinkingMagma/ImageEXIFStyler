@@ -4,14 +4,18 @@ import os
 import sys
 from pathlib import Path
 
+from core import PROJECT_ROOT
+
 REQUIRED_CONDA_ENV = "ies"
-_PROJECT_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = PROJECT_ROOT
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 os.chdir(_PROJECT_ROOT)
 
 
 def _is_required_conda_env() -> bool:
+    if getattr(sys, "frozen", False):
+        return True
     expected = REQUIRED_CONDA_ENV.lower()
     conda_env = os.environ.get("CONDA_DEFAULT_ENV", "").lower()
     if conda_env == expected:
@@ -36,8 +40,8 @@ from UI.editor.constants import HEIC_AVAILABLE, PREVIEW_MAX_DIMENSION, SUPPORTED
 from UI.editor.widgets import PreviewLabel, TemplateCardButton
 from UI.editor.window import EditorWindow
 from UI.editor.workers import ExportWorker, PreviewWorker
-from UI.shared.qt import QApplication, QFont, QT_BINDING, Qt
-from UI.shared.paths import configure_project_root
+from UI.shared.qt import QApplication, QFont, QIcon, QT_BINDING, Qt
+from UI.shared.paths import BRAND_LOGO_PATH, configure_project_root
 from UI.template_library.widgets import (
     CreateTemplateCard,
     TemplateLibraryCard,
@@ -52,6 +56,8 @@ def main():
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
     app.setApplicationName(WINDOW_TITLE)
+    if BRAND_LOGO_PATH.exists():
+        app.setWindowIcon(QIcon(str(BRAND_LOGO_PATH)))
     app.setFont(QFont("Microsoft YaHei UI", 10))
     window = EditorWindow()
     window.show()
