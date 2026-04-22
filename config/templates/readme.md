@@ -1,292 +1,609 @@
 # 模板 JSON 配置说明
 
-`config/templates` 目录中的每个 `.json` 文件都是一个图片处理模板。文件名就是 UI 中显示的模板名称，例如 `标准水印.json` 对应模板名 `标准水印`。
+`config/templates` 目录下的每个 `.json` 文件都是一个模板。文件名去掉 `.json` 后，就是 UI 中显示的模板名称。
 
-模板文件会先经过 Jinja2 渲染，再作为 JSON 解析成处理流水线。因此，模板里既可以写普通 JSON 值，也可以写 `{{ ... }}` 表达式来读取 EXIF、图片尺寸或自动 logo。需要注意的是，渲染后的结果必须是合法 JSON 数组。
+模板文件会先经过 Jinja2 渲染，再作为 JSON 解析成处理流水线，所以模板里既可以写普通 JSON，也可以写 `{{ ... }}` 表达式。
 
-## 基本结构
+要求：
 
-模板渲染后的结果必须是一个 JSON 数组，数组中的每一项是一个处理节点：
+- 文件编码使用 `UTF-8`
+- 渲染后的最终结果必须是合法的 JSON 数组
+- 数组中的每一项都是一个处理节点
+
+## 1. 基本结构
 
 ```json
 [
   {
     "processor_name": "rounded_corner",
-    "border_radius": "{{vh(2)}}"
+    "border_radius": "{{ vh(2) }}"
   },
   {
     "processor_name": "shadow",
-    "shadow_radius": "{{vh(1)}}",
+    "shadow_radius": "{{ vh(1) }}",
     "shadow_color": "black"
   }
 ]
 ```
 
-通用字段：
+处理顺序就是数组顺序。前一个节点的输出，会成为后一个节点的输入。
 
-| 字段 | 说明 | 取值 |
+## 2. 通用字段
+
+所有节点都支持以下通用字段：
+
+| 字段 | 是否必填 | 含义 | 取值说明 |
+| --- | --- | --- | --- |
+| `processor_name` | 是 | 当前节点使用的处理器名称 | 必须是已注册处理器名，例如 `rich_text`、`shadow`、`alignment` |
+| `select` | 否 | 指定当前节点从历史输出里取哪些图层作为输入 | 必须是 JSON 字符串，例如 `"[0,2]"` |
+| `buffer_path` | 否 | 重新从磁盘加载图片作为输入 | 通常写成路径数组，例如 `["{{ file_path }}"]` |
+| `save_buffer` | 否 | 是否保存当前节点的中间结果，方便调试 | JSON 布尔值：`true` / `false` |
+| `output` | 否 | 中间结果保存目录 | 路径字符串，默认 `./tmp` |
+
+### 2.1 `select` 的索引规则
+
+`select` 的索引从 `0` 开始：
+
+- `0`：原始输入图像
+- `1`：第一个节点的输出
+- `2`：第二个节点的输出
+- 以此类推
+
+示例：
+
+```json
+{
+  "processor_name": "alignment",
+  "select": "[0,3]"
+}
+```
+
+表示把“原图”和“第 3 个节点的输出”叠加。
+
+注意：
+
+- `select` 不是 JSON 数组，而是“JSON 字符串”
+- 如果不写 `select`：
+  - 普通处理器默认接收“上一个节点”的输出
+  - 合并类处理器会按内部规则收集最近一段缓冲区
+- 复杂模板建议显式写 `select`，避免拿错图层
+
+## 3. Jinja2 可用变量与函数
+
+模板渲染时可直接使用以下上下文：
+
+| 名称 | 含义 | 示例 |
 | --- | --- | --- |
-| `processor_name` | 必填。处理器名称，决定当前节点执行什么功能。 | 见下方处理器列表 |
-| `select` | 可选。指定当前节点使用哪些历史输出作为输入。 | 必须是 JSON 字符串，例如 `"[2,3,4]"` |
-| `buffer_path` | 可选。指定要加载的图片路径，常用于重新读取原图。 | 路径字符串数组，例如 `["{{file_path}}"]` |
-| `save_buffer` | 可选。是否保存当前节点的中间结果，主要用于调试。 | JSON 布尔值 `true` / `false`，不要写成字符串 |
-| `output` | 可选。保存中间结果的目录。 | 路径字符串，默认 `./tmp` |
+| `exif` | 当前图片的 EXIF 字典 | `{{ exif.Make|default('-') }}` |
+| `filename` | 当前文件名，不含扩展名 | `{{ filename }}` |
+| `file_dir` | 当前文件所在目录 | `{{ file_dir }}` |
+| `file_path` | 当前处理图片路径 | `{{ file_path }}` |
+| `files` | 当前处理图片路径列表 | `{{ files[0] }}` |
+| `template_inputs` | 当前模板的自定义输入值 | `{{ template_inputs.custom_text|default('Hello World!') }}` |
+| `vw(percent)` | 按 `ImageWidth` 计算像素值 | `{{ vw(10) }}` 表示宽度的 10% |
+| `vh(percent)` | 按 `ImageHeight` 计算像素值 | `{{ vh(3) }}` 表示高度的 3% |
+| `auto_logo(brand=None)` | 根据品牌自动匹配 `config/logos` 中的 logo | `{{ auto_logo()|replace('\\', '/') }}` |
 
-默认情况下，每个非合并处理器会接收上一节点的输出。合并处理器不写 `select` 时，会按内部历史缓冲区自动取图：第一个合并器会拿到原始输入图像和它之前所有节点的输出，后续合并器会从上一个合并器的输出开始继续收集。为了避免合并到不需要的图层，复杂模板建议显式写 `select`。
+`auto_logo()` 规则：
 
-`select` 的索引从 `0` 开始：`0` 表示原始输入图像，`1` 表示第一个节点的输出，`2` 表示第二个节点的输出，以此类推。
+- 优先根据传入 `brand`
+- 未传入时使用 `exif.Make`
+- 若配置中关闭 logo，返回空字符串
+- 找不到时尝试返回 `config/logos/default.png`
 
-## Jinja2 可用变量和函数
-
-| 名称 | 说明 | 示例 |
-| --- | --- | --- |
-| `exif` | 当前图片的 EXIF 字典。 | `{{ exif.Make|default('-') }}` |
-| `filename` | 当前图片文件名，不含扩展名。 | `{{ filename }}` |
-| `file_dir` | 当前图片所在目录。 | `{{ file_dir }}` |
-| `file_path` | 当前处理图片路径。预览时可能是临时缩略图路径。 | `{{ file_path }}` |
-| `files` | 当前处理图片路径列表。 | `{{ files[0] }}` |
-| `vw(percent)` | 按 EXIF 中的 `ImageWidth` 计算像素值。 | `{{ vw(10) }}` 表示宽度的 10% |
-| `vh(percent)` | 按 EXIF 中的 `ImageHeight` 计算像素值。 | `{{ vh(3) }}` 表示高度的 3% |
-| `auto_logo(brand=None)` | 根据 EXIF `Make` 或指定品牌返回 `config/logos` 下匹配的 logo 路径；配置关闭 logo 时返回空字符串。 | `{{ auto_logo()|replace('\\', '/') }}` |
-
-常用 EXIF 字段：
+## 4. 常用 EXIF 字段
 
 | 字段 | 含义 |
 | --- | --- |
 | `Make` | 相机/设备品牌 |
 | `Model` | 相机/设备型号 |
 | `LensModel` | 镜头型号 |
-| `FNumber` | 光圈，例如 `F2.8` |
-| `ExposureTime` / `ShutterSpeed` / `ShutterSpeedValue` | 快门速度，例如 `1/125` |
+| `FNumber` | 光圈，如 `F2.8` |
+| `ExposureTime` / `ShutterSpeed` / `ShutterSpeedValue` | 快门，如 `1/125` |
 | `ISO` / `ISOSpeedRatings` | ISO |
-| `FocalLength` | 原始焦距 |
+| `FocalLength` | 原始焦距，如 `50mm` |
 | `FocalLengthIn35mmFormat` | 35mm 等效焦距 |
-| `DateTimeOriginal` / `DateTime` / `DateTimeDigitized` | 拍摄或写入时间 |
+| `DateTimeOriginal` / `DateTime` / `DateTimeDigitized` | 时间 |
 | `ImageWidth` / `ImageHeight` / `ImageSize` | 图片尺寸 |
 
-提示：EXIF 字段可能不存在，建议使用 `default` 或 `or` 设置兜底值，例如：
+建议所有 EXIF 读取都带兜底：
 
 ```jinja2
 {{ exif.LensModel|default('-') }}
 {{ exif.ShutterSpeed or exif.ShutterSpeedValue|default('-') }}
 ```
 
-## 值类型约定
+## 5. 值类型与写法规则
 
-| 类型 | 说明 | 示例 |
-| --- | --- | --- |
-| 数字 | 多数宽高、半径、间距字段会转换为 `int` 或 `float`，可写数字，也可写 Jinja 表达式字符串；`gradient_color` 的 `width` / `height` 使用原始值，建议写成 JSON 数字。 | `100`、`"{{vh(2)}}"`、`{{vw(50)}}` |
-| 布尔值 | 优先使用 JSON 布尔值。`trim`、`is_bold`、`trim_left`、`trim_right`、`trim_top`、`trim_bottom` 支持 `"false"`、`"0"` 等字符串；`save_buffer` 等通用字段不要写成字符串。 | `true`、`false` |
-| 颜色 | 支持颜色名、十六进制、RGBA 十六进制、RGB/RGBA 数组或字符串。 | `"white"`、`"#242424"`、`"#ffffff00"`、`"255,255,255,128"` |
-| 字体 | 相对路径会从 `config/fonts` 下查找，也可以写绝对路径。 | `"AlibabaPuHuiTi-2-85-Bold.otf"` |
-| 图片/logo 路径 | 建议使用绝对路径或 Jinja 返回的路径；项目内路径通常相对启动目录解析。 | `"{{auto_logo()|replace('\\', '/')}}"` |
-| JSON 字符串 | 某些字段会再次 `json.loads`，需要写成字符串。 | `"select": "[2,3,4]"`、`"offset": "[0, -{{vh(3)}}]"`、`"weights": "[100,-100]"`、`"offsets": "[[0,0],[0,-20]]"` |
+### 5.1 数字
 
-## 处理器参数
+多数数值字段最终会被转成 `int` 或 `float`。
 
-### 生成器
+常见写法：
 
-生成器会创建新图像或文字图像。
+- 直接写 JSON 数字：`100`
+- 写成 Jinja 表达式结果：`{{ vh(3) }}`
+- 某些字段也能接受字符串数字：`"100"`
 
-| `processor_name` | 功能 | 参数 |
-| --- | --- | --- |
-| `solid_color` | 生成纯色图片。 | `width`、`height`、`color` |
-| `gradient_color` | 生成渐变图片。 | `width`、`height`、`start_color`、`end_color`、`direction`、`interpolate_method` |
-| `rich_text` | 生成单段文字图片。 | `text`、`font_path`、`height`、`color`、`is_bold`、`trim` |
-| `multi_rich_text` | 将多段文字横向拼成一张文字图片。 | `text_segments`、`text_alignment`、`text_spacing`、`height` |
-| `image` | 从路径读取图片。 | `path`，可为单个路径字符串或路径数组 |
+建议：
 
-`gradient_color.direction` 可取：`horizontal`、`vertical`、`diagonal`、`radial`。
+- `solid_color.width / height`
+- `gradient_color.width / height`
 
-`gradient_color.interpolate_method` 可取：`linear`、`ease_in`、`ease_out`、`ease_in_out`。
+这类字段优先输出成 JSON 数字，不要额外包引号。
 
-`gradient_color.width` 和 `gradient_color.height` 如果使用 Jinja 表达式，建议不要加引号，例如：
+### 5.2 布尔值
 
-```jinja2
-{
-  "processor_name": "gradient_color",
-  "width": {{vw(100)}},
-  "height": {{vh(100)}},
-  "start_color": "#000000",
-  "end_color": "#ffffff",
-  "direction": "vertical"
-}
-```
+优先使用 JSON 布尔值：
 
-`multi_rich_text.text_alignment` 使用与 `concat.alignment` 相同的取值，未填写时按 `bottom` 处理；`text_spacing` 未填写时为 `0`，`height` 未填写时为 `100`。
+- `true`
+- `false`
 
-`text_segments` 中每一段支持：
+部分字段也兼容字符串形式：
+
+- `"false"`
+- `"0"`
+- `"no"`
+- `"off"`
+
+但通用字段如 `save_buffer` 仍建议只写真正的 JSON 布尔值。
+
+### 5.3 颜色
+
+颜色字段支持以下形式：
+
+- 颜色名：`"white"`
+- 十六进制 RGB：`"#242424"`
+- 十六进制 RGBA：`"#ffffff00"`
+- RGB 字符串：`"255,255,255"`
+- RGBA 字符串：`"255,255,255,128"`
+- 数组或元组字符串：`"(255,255,255,128)"`、`"[255,255,255,128]"`
+
+### 5.4 字体路径
+
+`font_path` 支持：
+
+- 相对路径：从 `config/fonts` 下查找
+- 绝对路径：直接使用
+
+示例：
 
 ```json
-{
-  "text": "NIKON",
-  "font_path": "AlibabaPuHuiTi-2-85-Bold.otf",
-  "color": "white",
-  "is_bold": true,
-  "trim": true
-}
+"font_path": "HFIntimate-2.ttf"
 ```
 
-### 滤镜
+### 5.5 需要写成 JSON 字符串的字段
 
-滤镜会处理输入图像。
+以下字段内部会再次调用 `json.loads`，所以必须写成字符串：
 
-| `processor_name` | 功能 | 参数 |
-| --- | --- | --- |
-| `blur` | 高斯模糊。 | `blur_radius`，默认 `5` |
-| `resize` | 缩放图片。 | `width`、`height`、`scale` 三种方式任选；同时给 `width` 和 `height` 时会强制缩放到指定尺寸 |
-| `trim` | 裁掉四周背景/透明边。 | `trim_left`、`trim_right`、`trim_top`、`trim_bottom`，默认均为 `true` |
-| `margin` | 给图片增加边距。 | `left_margin`、`right_margin`、`top_margin`、`bottom_margin`、`margin_color` |
-| `margin_with_ratio` | 自动补边到指定比例。 | `ratio`，例如 `"3:2"`、`"16:9"`；未填写时使用 EXIF 中的 `ImageWidth:ImageHeight`；可配合 `margin_color` |
-| `watermark` | 在底部增加水印信息栏。 | 见下方水印参数 |
-| `watermark_with_timestamp` | 在图像右下附近叠加文字水印。 | 同 `multi_rich_text`，可额外设置 `height` |
-| `rounded_corner` | 给图像添加圆角透明蒙版。 | `border_radius` |
-| `shadow` | 给图像添加投影。 | `shadow_color`、`shadow_radius` |
-| `crop` | 居中裁剪并支持偏移。 | `width`、`height`、`offset`，例如 `"[0, -{{vh(3)}}]"` |
-
-`watermark` 参数：
-
-| 参数 | 说明 |
+| 字段 | 示例 |
 | --- | --- |
-| `color` | 水印底部画布颜色，默认 `white` |
-| `delimiter_color` | logo 与右侧文字之间的分割线颜色，默认 `black` |
-| `delimiter_width` | 分割线宽度，默认约为图片宽度的 `0.3%` |
-| `left_margin` / `right_margin` / `top_margin` / `bottom_margin` | 水印画布边距；`bottom_margin` 默认约为图片高度的 `12%` |
-| `middle_spacing` | 上下两行文字间距，默认约为 `bottom_margin` 的 `5%` |
-| `right_alignment` | 右侧两行文字的横向对齐。当前实现只对 `left` 做特殊处理；未填写、`right`、`center` 都按右对齐逻辑处理 |
-| `left_top` / `left_bottom` | 必填。左侧上/下文字处理器配置，通常用 `rich_text` 或 `multi_rich_text` |
-| `right_top` / `right_bottom` | 必填。右侧上/下文字处理器配置，通常用 `rich_text` |
-| `left_logo` / `right_logo` / `center_logo` | logo 图片路径。空字符串、`none`、`null` 会被忽略 |
-| `center_logo_height` | 中央 logo 高度；不填时使用底部水印区域高度 |
+| `select` | `"[0,2]"` |
+| `offset` | `"[0, -20]"` |
+| `offsets` | `"[ [0,0], [0,-20] ]"` |
+| `weights` | `"[100,-100]"` |
+
+## 6. 处理器列表与参数说明
+
+### 6.1 生成器类
+
+生成器会“创建新图像”或“读取外部图像”。
+
+#### `solid_color`
+
+生成纯色图。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `width` | 是 | 画布宽度 | 正整数像素 |
+| `height` | 是 | 画布高度 | 正整数像素 |
+| `color` | 是 | 填充颜色 | 见颜色写法 |
 
 示例：
 
 ```json
 {
-  "processor_name": "watermark",
-  "color": "white",
-  "delimiter_color": "#D8D8D6",
-  "right_alignment": "left",
-  "right_logo": "{{auto_logo()|replace('\\', '/')}}",
-  "left_top": {
-    "processor_name": "multi_rich_text",
-    "text_segments": [
-      {
-        "text": "{{ (exif.Make|default('') + ' ' + exif.Model|default(''))|trim|default('-') }}",
-        "font_path": "AlibabaPuHuiTi-2-85-Bold.otf",
-        "color": "black",
-        "is_bold": true
-      }
-    ]
-  },
-  "left_bottom": {
-    "processor_name": "rich_text",
-    "text": "{{ exif.LensModel|default('-') }}",
-    "color": "#242424"
-  },
-  "right_top": {
-    "processor_name": "rich_text",
-    "text": "{{ exif.FocalLengthIn35mmFormat|default('-') }} {{ exif.FNumber|default('-') }} ISO{{ exif.ISO|default('0') }}",
-    "color": "#242424"
-  },
-  "right_bottom": {
-    "processor_name": "rich_text",
-    "text": "{{ exif.DateTimeOriginal|default('-') }}",
-    "color": "#242424"
-  }
+  "processor_name": "solid_color",
+  "width": 1200,
+  "height": 800,
+  "color": "#101010"
 }
 ```
 
-### 合并器
+#### `gradient_color`
 
-合并器会把多张图合成一张图。
+生成渐变背景。
 
-| `processor_name` | 功能 | 参数 |
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `width` | 是 | 画布宽度 | 正整数像素 |
+| `height` | 是 | 画布高度 | 正整数像素 |
+| `start_color` | 是 | 起始颜色 | 见颜色写法 |
+| `end_color` | 是 | 结束颜色 | 见颜色写法 |
+| `direction` | 否 | 渐变方向 | `horizontal` / `vertical` / `diagonal` / `radial`，默认 `horizontal` |
+| `interpolate_method` | 否 | 渐变插值方式 | `linear` / `ease_in` / `ease_out` / `ease_in_out`，默认 `linear` |
+
+#### `rich_text`
+
+生成单段文字图层。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `text` | 是 | 文字内容 | 字符串 |
+| `font_path` | 否 | 字体文件 | 相对 `config/fonts` 或绝对路径 |
+| `height` | 否 | 目标文字高度 | 数字，默认 `100` |
+| `color` | 否 | 文字颜色 | 默认 `black` |
+| `is_bold` | 否 | 加粗模式 | 布尔值；当前实现是额外放大约 1.13 倍，不会自动切换粗体字体文件 |
+| `trim` | 否 | 是否裁掉文字上下透明留白 | 布尔值；当前只裁上边和下边 |
+
+说明：
+
+- 空文本会被替换成单个空格，避免生成失败
+- 推荐配合透明背景叠加使用
+
+#### `multi_rich_text`
+
+把多段文字横向拼成一张文字图。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `text_segments` | 是 | 文字片段列表 | 数组，每项见下表 |
+| `text_alignment` | 否 | 各片段在横向拼接时的垂直对齐方式 | 与 `concat.alignment` 相同，默认 `bottom` |
+| `text_spacing` | 否 | 片段间距 | 数字，默认 `0` |
+| `height` | 否 | 所有片段统一使用的高度 | 数字，默认 `100` |
+
+`text_segments` 每项支持：
+
+| 字段 | 是否必填 | 含义 |
 | --- | --- | --- |
-| `concat` | 按水平或垂直方向拼接多张图。 | `direction`、`alignment`、`spacing`、`background` |
-| `alignment` | 将多张图叠放到同一画布中。 | `horizontal_alignment`、`vertical_alignment`、`background`、`offsets`、`weights` |
+| `text` | 是 | 文字内容 |
+| `font_path` | 否 | 字体文件 |
+| `color` | 否 | 文字颜色 |
+| `is_bold` | 否 | 是否加粗模式 |
+| `trim` | 否 | 是否裁上下透明边 |
 
-通用对齐取值：
+注意：
 
-| 取值 | 含义 |
+- 子项里的 `height` 最终会被外层 `height` 覆盖
+- 适合做品牌名 + 参数串的组合标题
+
+#### `image`
+
+从磁盘读取图片。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `path` | 是 | 要加载的图片路径 | 单个字符串，或字符串数组 |
+
+示例：
+
+```json
+{
+  "processor_name": "image",
+  "path": "{{ auto_logo()|replace('\\', '/') }}"
+}
+```
+
+### 6.2 滤镜类
+
+滤镜会处理输入图像。
+
+#### `blur`
+
+高斯模糊。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `blur_radius` | 否 | 模糊半径 | 数字，默认 `5` |
+
+#### `resize`
+
+缩放图像。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `width` | 否 | 目标宽度 | 数字 |
+| `height` | 否 | 目标高度 | 数字 |
+| `scale` | 否 | 按比例缩放 | 数字，例如 `2`、`0.5` |
+
+规则：
+
+- 同时给 `width` 和 `height`：强制缩放到指定尺寸
+- 只给 `width`：按宽度等比缩放
+- 只给 `height`：按高度等比缩放
+- 只给 `scale`：按倍数等比缩放
+
+#### `trim`
+
+裁掉四周与背景近似的边缘。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `trim_left` | 否 | 是否裁左边 | 布尔值，默认 `true` |
+| `trim_right` | 否 | 是否裁右边 | 布尔值，默认 `true` |
+| `trim_top` | 否 | 是否裁上边 | 布尔值，默认 `true` |
+| `trim_bottom` | 否 | 是否裁下边 | 布尔值，默认 `true` |
+
+说明：
+
+- 透明图会按四角颜色估算背景
+- 适合清理文字图层或透明边
+
+#### `margin`
+
+给图片加四边距。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `left_margin` | 否 | 左边距 | 数字，默认 `0` |
+| `right_margin` | 否 | 右边距 | 数字，默认 `0` |
+| `top_margin` | 否 | 上边距 | 数字，默认 `0` |
+| `bottom_margin` | 否 | 下边距 | 数字，默认 `0` |
+| `margin_color` | 否 | 边距填充色 | 默认 `white` |
+
+如果想看到后方图层，应把 `margin_color` 设为透明，例如：
+
+```json
+"margin_color": "#00000000"
+```
+
+#### `margin_with_ratio`
+
+自动补边到目标比例。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `ratio` | 否 | 目标宽高比 | 字符串，例如 `"3:2"`、`"16:9"` |
+| `margin_color` | 否 | 补边颜色 | 与 `margin` 相同 |
+
+规则：
+
+- 图片过宽时补上下边
+- 图片过高时补左右边
+- 不写 `ratio` 时，回退到 EXIF 中的原始比例
+
+#### `watermark`
+
+在主图底部生成一整块水印栏。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `color` | 否 | 水印栏底色 | 默认 `white` |
+| `delimiter_color` | 否 | 右侧 logo 分隔线颜色 | 默认 `black` |
+| `delimiter_width` | 否 | 分隔线宽度 | 默认约为主图宽度的 `0.3%` |
+| `left_margin` | 否 | 左外边距 | 数字，默认 `0` |
+| `right_margin` | 否 | 右外边距 | 数字，默认 `0` |
+| `top_margin` | 否 | 上外边距 | 数字，默认 `0` |
+| `bottom_margin` | 否 | 底部水印区高度 | 默认约为主图高度的 `12%` |
+| `middle_spacing` | 否 | 上下两行文字间距 | 默认约为 `bottom_margin * 5%` |
+| `right_alignment` | 否 | 右侧上下两行的横向对齐 | `left` / `center` / `right`；当前只有 `left` 会触发特殊处理，其余都按右对齐逻辑 |
+| `left_top` | 是 | 左上文字节点 | 一般是 `rich_text` 或 `multi_rich_text` 配置对象 |
+| `left_bottom` | 是 | 左下文字节点 | 同上 |
+| `right_top` | 是 | 右上文字节点 | 同上 |
+| `right_bottom` | 是 | 右下文字节点 | 同上 |
+| `left_logo` | 否 | 左侧 logo 路径 | 字符串；空字符串、`none`、`null` 会被忽略 |
+| `right_logo` | 否 | 右侧 logo 路径 | 同上 |
+| `center_logo` | 否 | 中央 logo 路径 | 同上 |
+| `center_logo_height` | 否 | 中央 logo 高度 | 数字；不写则使用底部水印区高度 |
+
+补充行为：
+
+- `left_top / left_bottom / right_top / right_bottom` 如果未提供 `height`，会自动使用 `bottom_margin * 0.3`
+- 主图会贴到上方，底部新增水印区
+- 右侧 logo 会出现在分隔线左边
+
+#### `watermark_with_timestamp`
+
+把文字水印叠加到图像右下区域。
+
+它会先按 `multi_rich_text` 生成文字，再贴回原图。
+
+可用参数：
+
+- `text_segments`
+- `text_alignment`
+- `text_spacing`
+- `height`
+
+默认行为：
+
+- `height` 不写时，约为图片高度的 `2%`
+- 水印位置固定在靠右下区域，代码中约为：
+  - `x = 图片宽度的 93% - 文字宽度`
+  - `y = 图片高度的 95%`
+
+#### `rounded_corner`
+
+给图像加透明圆角。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `border_radius` | 否 | 圆角半径 | 数字，默认 `10` |
+
+注意：
+
+- 该处理器会生成透明角
+- 若最终导出为 JPG，透明区域会在转 `RGB` 时失去透明信息
+
+#### `shadow`
+
+给图像加外阴影。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `shadow_color` | 否 | 阴影颜色 | 默认 `(0, 0, 0, 180)` |
+| `shadow_radius` | 否 | 阴影模糊半径 | 数字，默认 `30` |
+
+说明：
+
+- 该处理器会在四周扩展画布
+- 实际扩边大约是 `shadow_radius * 2`
+- 阴影基于 alpha 通道生成，适合透明 PNG 图层或圆角图层
+
+#### `crop`
+
+按给定宽高从中心裁剪，并支持偏移。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `width` | 否 | 裁剪宽度 | 数字；不写则使用原宽 |
+| `height` | 否 | 裁剪高度 | 数字；不写则使用原高 |
+| `offset` | 否 | 相对居中裁剪框的偏移 | JSON 字符串，如 `"[0, -20]"` |
+
+`offset` 方向规则：
+
+- `x` 正值：向右
+- `x` 负值：向左
+- `y` 正值：向下
+- `y` 负值：向上
+
+### 6.3 合并类
+
+合并类用于拼接或叠加多个图层。
+
+#### 对齐枚举值
+
+| 写法 | 含义 |
 | --- | --- |
 | `start` | 起始侧 |
 | `center` | 居中 |
 | `end` | 结束侧 |
-| `top` / `middle` / `bottom` | 垂直语义别名，分别等价于 `start` / `center` / `end` |
-| `left` / `right` | 水平语义别名，分别等价于 `start` / `end` |
+| `top` | `start` 的垂直别名 |
+| `middle` | `center` 的垂直别名 |
+| `bottom` | `end` 的垂直别名 |
+| `left` | `start` 的水平别名 |
+| `right` | `end` 的水平别名 |
 
-`concat.direction` 可取：`horizontal`、`vertical`。
+#### `concat`
 
-`alignment.offsets` 和 `alignment.weights` 需要写成 JSON 字符串：
+把多张图按横向或纵向拼起来。
+
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `direction` | 否 | 拼接方向 | `horizontal` / `vertical`，默认 `horizontal` |
+| `alignment` | 否 | 另一维度的对齐方式 | 见上表，默认 `bottom` |
+| `spacing` | 否 | 图层间距 | 数字，默认 `10` |
+| `background` | 否 | 拼接画布底色 | 默认透明 |
+
+示例：
 
 ```json
 {
-  "processor_name": "alignment",
-  "select": "[5,7]",
-  "weights": "[100,-100]",
-  "offsets": "[[0,0],[0,-20]]"
+  "processor_name": "concat",
+  "direction": "vertical",
+  "alignment": "center",
+  "spacing": "{{ vh(2) }}",
+  "select": "[2,3]"
 }
 ```
 
-`weights` 数值越小越先绘制，后绘制的图会覆盖前面的图。
+#### `alignment`
 
-`offsets` 中的偏移值会在粘贴前取反：`[10,20]` 会让对应图层相对对齐基准向左、向上移动，`[-10,-20]` 会向右、向下移动。
+把多张图叠到同一张画布上。
 
-## 如何自定义模板
+| 参数 | 是否必填 | 含义 | 取值 |
+| --- | --- | --- | --- |
+| `horizontal_alignment` | 否 | 水平方向基准对齐 | `left` / `center` / `right`，默认 `center` |
+| `vertical_alignment` | 否 | 垂直方向基准对齐 | `top` / `middle` / `bottom`，默认 `center` |
+| `background` | 否 | 叠加画布底色 | 默认透明 |
+| `offsets` | 否 | 每个图层的偏移量 | JSON 字符串，例如 `[[0,0],[0,-20]]` |
+| `weights` | 否 | 图层绘制顺序权重 | JSON 字符串，例如 `[100,-100]` |
 
-1. 复制一个现有模板，例如复制 `标准水印.json` 为 `我的模板.json`。
-2. 保持模板渲染后的内容为合法 JSON 数组，编码使用 UTF-8。UI 会按文件名识别模板，模板名就是 `我的模板`。
-3. 修改文字内容时优先使用 `default` 处理缺失 EXIF，例如 `{{ exif.Model|default('-') }}`。
-4. 修改尺寸、间距、圆角、模糊半径时，建议优先使用 `vw()` / `vh()`，这样模板能适配不同分辨率。
-5. 新增字体时放到 `config/fonts`，并在 `font_path` 中填写文件名；新增 logo 时放到 `config/logos`，并在模板中写入路径或使用 `auto_logo()`。
-6. 如果需要复杂效果，可以按顺序叠加多个处理器，并用 `select` 指定历史输出参与拼接或叠放。
-7. 保存后在 UI 的模板库或编辑器中重新选择模板进行预览。如果模板无法渲染，优先检查 JSON 语法、`processor_name` 拼写、`select` 索引、颜色格式和字体/logo 路径。
+`weights` 规则：
 
-## 常见模板片段
+- 数值越小，越先绘制
+- 数值越大，越后绘制
+- 后绘制的图层会盖住前面的图层
 
-给主图增加圆角和阴影：
+`offsets` 规则很重要：
 
-```json
-[
-  {
-    "processor_name": "rounded_corner",
-    "border_radius": "{{vh(2)}}"
-  },
-  {
-    "processor_name": "shadow",
-    "shadow_radius": "{{vh(1)}}",
-    "shadow_color": "black"
-  }
-]
-```
+- 代码里会先把偏移值取反再应用
+- 所以：
+  - `[10, 20]` 实际效果是“向左、向上”
+  - `[-10, -20]` 实际效果是“向右、向下”
 
-生成两行文字并垂直拼接：
+这和 `crop.offset` 的方向正好相反。
+
+## 7. 常见片段
+
+### 7.1 图片内中下方叠加自定义文字
 
 ```json
 [
   {
     "processor_name": "rich_text",
-    "text": "{{ exif.Make|default('-') }} {{ exif.Model|default('') }}",
-    "font_path": "AlibabaPuHuiTi-2-85-Bold.otf",
-    "height": "{{vh(3)}}",
+    "text": "{{ template_inputs.custom_text|default('Hello World!') }}",
+    "font_path": "HFIntimate-2.ttf",
+    "height": "{{ vh(5.2) }}",
     "trim": true,
     "color": "white"
   },
   {
+    "processor_name": "shadow",
+    "shadow_radius": "{{ vh(0.6) }}",
+    "shadow_color": "0,0,0,180"
+  },
+  {
+    "processor_name": "alignment",
+    "horizontal_alignment": "center",
+    "vertical_alignment": "center",
+    "offsets": "[[0,0],[0,-{{ vh(28) }}]]",
+    "select": "[0,2]"
+  }
+]
+```
+
+### 7.2 图片下方新增一行自定义文字
+
+```json
+[
+  {
     "processor_name": "rich_text",
-    "text": "{{ exif.FocalLengthIn35mmFormat|default('-') }} {{ exif.FNumber|default('-') }} ISO{{ exif.ISO|default('0') }}",
-    "font_path": "AlibabaPuHuiTi-2-45-Light.otf",
-    "height": "{{vh(3)}}",
+    "text": "{{ template_inputs.custom_text|default('Hello World!') }}",
+    "font_path": "HFIntimate-2.ttf",
+    "height": "{{ vh(4.2) }}",
     "trim": true,
     "color": "white"
   },
   {
     "processor_name": "concat",
-    "alignment": "center",
-    "spacing": "{{vh(2)}}",
     "direction": "vertical",
-    "select": "[1,2]"
+    "alignment": "center",
+    "spacing": "{{ vh(2.2) }}",
+    "select": "[0,1]"
   }
 ]
 ```
+
+## 8. 调试建议
+
+1. 先保证模板渲染后是合法 JSON，再检查视觉效果。
+2. 复杂模板优先显式写 `select`，不要依赖隐式缓冲区。
+3. 涉及 `offset`、`offsets` 时，先记住：
+   - `crop.offset`：正右正下
+   - `alignment.offsets`：正左正上
+4. 需要看中间结果时，可在节点上加：
+
+```json
+"save_buffer": true
+```
+
+并可选设置：
+
+```json
+"output": "./tmp"
+```
+
+5. 文字、logo、透明边、阴影问题优先排查：
+   - 字体路径是否存在
+   - logo 路径是否为空
+   - 是否导出为 JPG 导致透明丢失
+   - `shadow` 是否把画布扩大了
+
+## 9. 自定义模板建议
+
+1. 优先复制一个接近的现有模板再改。
+2. 尺寸、间距、圆角、阴影半径优先使用 `vw()` / `vh()`，更容易适配不同分辨率。
+3. 读 EXIF 时始终写 `default` 兜底。
+4. 新字体放到 `config/fonts`，新 logo 放到 `config/logos`。
+5. 若模板需要用户输入，统一从 `template_inputs` 读取。

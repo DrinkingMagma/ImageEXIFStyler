@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from core.template_inputs import format_template_display_name, get_template_input_specs
+from core.template_inputs import (
+    format_template_display_name,
+    format_template_library_card_title,
+    get_template_input_specs,
+)
 from UI.shared.qt import (
     ALIGN_CENTER,
     ALIGN_LEFT,
@@ -122,9 +126,10 @@ class TemplateLibraryCard(QFrame):
         self.refresh_title()
 
     def refresh_title(self):
-        title = format_template_display_name(self.spec.name)
+        title = format_template_library_card_title(self.spec.name)
+        tooltip = format_template_display_name(self.spec.name)
         self.title_label.setText(title)
-        self.title_label.setToolTip(title)
+        self.title_label.setToolTip(tooltip)
 
     def set_selected(self, selected: bool):
         self.setProperty("cardSelected", selected)

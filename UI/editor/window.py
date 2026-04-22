@@ -11,7 +11,7 @@ from PIL import Image
 from core.configs import load_config
 from core.logger import logger
 from core.template_inputs import get_template_inputs
-from core.util import build_export_filename, ensure_export_suffixes
+from core.util import build_export_filename, normalize_export_output_path
 from UI.batch.page import BatchProcessPage
 from UI.editor.constants import SUPPORTED_FILTER, WINDOW_TITLE
 from UI.editor.widgets import PreviewLabel, TemplateCardButton
@@ -782,7 +782,7 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
             extension=".jpg",
         )
 
-        output_path, _ = QFileDialog.getSaveFileName(
+        output_path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "导出图像",
             str(output_dir / default_name),
@@ -790,7 +790,8 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         )
         if not output_path:
             return
-        output_path = str(ensure_export_suffixes(output_path, self.selected_template, export_quality))
+        default_extension = ".png" if selected_filter.startswith("PNG") else ".jpg"
+        output_path = str(normalize_export_output_path(output_path, default_extension=default_extension))
 
         self.export_button.setEnabled(False)
         self._update_status(f"状态：正在导出 | 模板：{self.selected_template}")

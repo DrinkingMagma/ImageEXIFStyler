@@ -1,0 +1,22 @@
+[
+  {
+    "processor_name": "rich_text",
+    "text": "{{ template_inputs.custom_text|default('Hello World!') }}",
+    "font_path": "HFIntimate-2.ttf",
+    "height": "{{vh(5.2)}}",
+    "trim": true,
+    "color": "white"
+  },
+  {
+    "processor_name": "shadow",
+    "shadow_radius": "{{vh(0.6)}}",
+    "shadow_color": "0,0,0,180"
+  },
+  {
+    "processor_name": "alignment",
+    "horizontal_alignment": "center",
+    "vertical_alignment": "center",
+    "offsets": "[[0,0],[0,-{{vh(40)}}]]",
+    "select": "[0,2]"
+  }
+]

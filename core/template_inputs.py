@@ -21,18 +21,20 @@ class TemplateInputSpec:
     allow_empty: bool = True
 
 
+_CUSTOM_TEXT_SPEC = TemplateInputSpec(
+    key="custom_text",
+    label="自定义文字",
+    dialog_title="设置自定义文字",
+    dialog_prompt="请输入自定义文字（英文）",
+    default="Hello World!",
+    ascii_only=True,
+    allow_empty=False,
+)
+
+
 TEMPLATE_INPUT_SPECS: dict[str, tuple[TemplateInputSpec, ...]] = {
-    "背景模糊（自定义文字）": (
-        TemplateInputSpec(
-            key="custom_text",
-            label="自定义文字",
-            dialog_title="设置自定义文字",
-            dialog_prompt="请输入自定义文字（英文）",
-            default="Hello World!",
-            ascii_only=True,
-            allow_empty=False,
-        ),
-    ),
+    "背景模糊（自定义文字）": (_CUSTOM_TEXT_SPEC,),
+    "自定义文字": (_CUSTOM_TEXT_SPEC,),
 }
 
 
@@ -76,17 +78,29 @@ def get_template_inputs(template_name: str) -> dict[str, str]:
     return merged
 
 
-def format_template_display_name(template_name: str) -> str:
+def get_template_input_summary(template_name: str) -> str:
     specs = get_template_input_specs(template_name)
     if not specs:
-        return template_name
+        return ""
 
     values = get_template_inputs(template_name)
     suffixes = [values.get(spec.key, "").strip() for spec in specs]
     suffixes = [suffix for suffix in suffixes if suffix]
-    if not suffixes:
+    return " / ".join(suffixes)
+
+
+def format_template_display_name(template_name: str) -> str:
+    summary = get_template_input_summary(template_name)
+    if not summary:
         return template_name
-    return f"{template_name} - {' / '.join(suffixes)}"
+    return f"{template_name} - {summary}"
+
+
+def format_template_library_card_title(template_name: str) -> str:
+    summary = get_template_input_summary(template_name)
+    if not summary:
+        return template_name
+    return f"{template_name}\n{summary}"
 
 
 def validate_template_input(spec: TemplateInputSpec, value: str) -> tuple[bool, str]:

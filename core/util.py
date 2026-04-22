@@ -295,19 +295,23 @@ def build_export_filename(
     return f"{'_'.join(parts)}{resolved_extension.lower()}"
 
 
-def ensure_export_suffixes(path: str | Path, template_name: str, quality: int | None = None) -> Path:
+def normalize_export_output_path(path: str | Path, default_extension: str | None = None) -> Path:
     output_path = Path(path)
-    extension = output_path.suffix or ".jpg"
-    tokens = [token for token in output_path.stem.split("_") if token]
+    resolved_extension = output_path.suffix or default_extension or ".jpg"
+    if not resolved_extension.startswith("."):
+        resolved_extension = f".{resolved_extension}"
 
-    if template_name and template_name not in tokens:
-        tokens.append(template_name)
+    stem = output_path.stem if output_path.suffix else output_path.name
+    return output_path.with_name(f"{stem}{resolved_extension.lower()}")
 
-    quality_token = f"Q{int(quality)}" if quality is not None else None
-    if quality_token and quality_token not in tokens:
-        tokens.append(quality_token)
 
-    return output_path.with_name(f"{'_'.join(tokens)}{extension.lower()}")
+def ensure_export_suffixes(
+    path: str | Path,
+    template_name: str,
+    quality: int | None = None,
+    extension: str | None = None,
+) -> Path:
+    return normalize_export_output_path(path, default_extension=extension)
 
 
 def log_rt(func):
