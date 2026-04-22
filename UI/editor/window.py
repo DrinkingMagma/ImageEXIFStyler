@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import traceback
 from collections import OrderedDict
 from pathlib import Path
@@ -9,11 +10,13 @@ from PIL import Image
 
 from core.configs import load_config
 from core.logger import logger
+from core.template_inputs import get_template_inputs
 from core.util import build_export_filename, ensure_export_suffixes
 from UI.batch.page import BatchProcessPage
 from UI.editor.constants import SUPPORTED_FILTER, WINDOW_TITLE
 from UI.editor.widgets import PreviewLabel, TemplateCardButton
 from UI.settings.page import SettingsPageMixin
+from UI.shared.dialogs import show_error, show_info
 from UI.shared.theme import EDITOR_STYLESHEET
 from UI.template_library.page import TemplateLibraryPageMixin
 from UI.template_library.widgets import TemplateLibraryCard
@@ -43,11 +46,8 @@ from UI.shared.qt import (
     QHBoxLayout,
     QIcon,
     QImage,
-    QInputDialog,
     QLabel,
-    QLineEdit,
     QMainWindow,
-    QMessageBox,
     QPoint,
     QPixmap,
     QPushButton,
@@ -87,7 +87,7 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         self.current_preview_token = 0
         self.preview_threads: dict[int, tuple[QThread, PreviewWorker]] = {}
         self.export_thread: Optional[tuple[QThread, ExportWorker]] = None
-        self.preview_cache: OrderedDict[tuple[str, int, int, str], tuple[QPixmap, dict]] = OrderedDict()
+        self.preview_cache: OrderedDict[tuple[str, int, int, str, str], tuple[QPixmap, dict]] = OrderedDict()
         self.displayed_preview_template: Optional[str] = None
         self._pending_footer_meta = ("--", "--", "--")
         self._window_drag_offset: Optional[QPoint] = None
@@ -662,14 +662,19 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         except Exception as exc:
             self.file_info_label.setText(f"{path.name} | 读取失败: {exc}")
 
-    def _make_preview_cache_key(self) -> Optional[tuple[str, int, int, str]]:
+    def _make_preview_cache_key(self) -> Optional[tuple[str, int, int, str, str]]:
         if not self.input_path:
             return None
         try:
             resolved_path, modified_ns, file_size = get_file_signature(self.input_path)
         except OSError:
             return None
-        return resolved_path, modified_ns, file_size, self.selected_template
+        template_input_key = json.dumps(
+            get_template_inputs(self.selected_template),
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        return resolved_path, modified_ns, file_size, self.selected_template, template_input_key
 
     def _get_cached_preview(self) -> Optional[tuple[QPixmap, dict]]:
         cache_key = self._make_preview_cache_key()
@@ -758,13 +763,13 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
         self.preview_label.set_preview(None, f"预览生成失败\n{error_message}")
         self.export_button.setEnabled(False)
         self._update_status("状态：预览失败")
-        QMessageBox.critical(self, "预览失败", error_message)
+        show_error(self, "预览失败", error_message)
 
     def _export_image(self):
         if not self.input_path:
             return
         if self.export_thread is not None:
-            QMessageBox.information(self, "导出进行中", "当前已有导出任务，请等待完成。")
+            show_info(self, "导出进行中", "当前已有导出任务，请等待完成。")
             return
 
         output_dir = Path(self.output_dir_setting).resolve()
@@ -813,12 +818,12 @@ class EditorWindow(TemplateLibraryPageMixin, SettingsPageMixin, QMainWindow):
     def _handle_export_finished(self, output_path: str):
         self.export_button.setEnabled(True)
         self._update_status(f"状态：导出完成 | {Path(output_path).name}")
-        QMessageBox.information(self, "导出完成", f"图像已导出到:\n{output_path}")
+        show_info(self, "导出完成", f"图像已导出到:\n{output_path}")
 
     def _handle_export_failed(self, error_message: str):
         self.export_button.setEnabled(True)
         self._update_status("状态：导出失败")
-        QMessageBox.critical(self, "导出失败", error_message)
+        show_error(self, "导出失败", error_message)
 
     def _clear_export_thread(self):
         self.export_thread = None

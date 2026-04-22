@@ -16,6 +16,7 @@ configure_project_root()
 
 from core.configs import load_config
 from core.logger import init_from_config, logger
+from core.template_inputs import get_template_inputs
 from core.util import get_template_path
 from processor import ensure_processors_registered
 from processor.core import start_process
@@ -62,6 +63,7 @@ class TemplateRenderService:
     def build_context(
         self,
         input_path: str,
+        template_name: Optional[str] = None,
         exif_data: Optional[dict] = None,
         render_input_path: Optional[str | Path] = None,
     ) -> dict:
@@ -73,6 +75,7 @@ class TemplateRenderService:
             "file_dir": str(path.parent).replace("\\", "/"),
             "file_path": str(processing_path).replace("\\", "/"),
             "files": [str(processing_path).replace("\\", "/")],
+            "template_inputs": get_template_inputs(template_name) if template_name else {},
         }
 
     def render_pipeline(
@@ -85,7 +88,12 @@ class TemplateRenderService:
         ensure_processors_registered()
         template = self.get_template(template_name)
         rendered = template.render(
-            self.build_context(input_path, exif_data=exif_data, render_input_path=render_input_path)
+            self.build_context(
+                input_path,
+                template_name=template_name,
+                exif_data=exif_data,
+                render_input_path=render_input_path,
+            )
         )
         return json.loads(rendered)
 

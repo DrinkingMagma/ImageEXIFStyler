@@ -1,0 +1,48 @@
+[
+  {
+    "processor_name": "rounded_corner",
+    "border_radius": "{{vh(2)}}"
+  },
+  {
+    "processor_name": "shadow",
+    "shadow_radius": "{{vh(1)}}",
+    "shadow_color": "black"
+  },
+  {
+    "processor_name": "rich_text",
+    "text": "{{ template_inputs.custom_text|default('Hello World!') }}",
+    "font_path": "HFIntimate-2.ttf",
+    "height": "{{vh(4.2)}}",
+    "trim": true,
+    "color": "white"
+  },
+  {
+    "processor_name": "concat",
+    "alignment": "center",
+    "spacing": "{{vh(2.2)}}",
+    "direction": "vertical",
+    "select": "[2,3]"
+  },
+  {
+    "processor_name": "blur",
+    "blur_radius": "{{vh(3)}}",
+    "buffer_path": [
+      "{{file_path}}"
+    ]
+  },
+  {
+    "processor_name": "resize",
+    "scale": 2
+  },
+  {
+    "processor_name": "alignment",
+    "weights": "[100,-100]",
+    "select": "[4,6]"
+  },
+  {
+    "processor_name": "crop",
+    "width": "{{vw(115)}}",
+    "height": "{{vh(122)}}",
+    "offset": "[0, -{{vh(2)}}]"
+  }
+]

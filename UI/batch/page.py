@@ -14,6 +14,7 @@ from UI.batch.models import (
 )
 from UI.batch.worker import BatchProcessWorker
 from UI.batch.widgets import BatchCardWidget, BatchCompletionDialog
+from UI.shared.dialogs import show_info
 from UI.shared.qt import (
     ALIGN_CENTER,
     ALIGN_LEFT,
@@ -27,7 +28,6 @@ from UI.shared.qt import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -355,7 +355,7 @@ class BatchProcessPage(QWidget):
                 existing_paths.add(resolved)
                 new_paths.append(resolved)
         if not new_paths:
-            QMessageBox.information(self, "没有新图片", "所选图片已经在批量队列中。")
+            show_info(self, "没有新图片", "所选图片已经在批量队列中。")
             return
         for path in new_paths:
             item = self._build_queue_item(path)
@@ -387,7 +387,7 @@ class BatchProcessPage(QWidget):
 
     def clear_items(self):
         if self.batch_thread is not None:
-            QMessageBox.information(self, "处理中", "批量处理尚未完成，暂时不能清空队列。")
+            show_info(self, "处理中", "批量处理尚未完成，暂时不能清空队列。")
             return
         self.batch_items.clear()
         for card in self.batch_cards:
@@ -402,7 +402,7 @@ class BatchProcessPage(QWidget):
 
     def remove_item(self, index: int):
         if self.batch_thread is not None:
-            QMessageBox.information(self, "处理中", "批量处理尚未完成，暂时不能移除图片。")
+            show_info(self, "处理中", "批量处理尚未完成，暂时不能移除图片。")
             return
         if index < 0 or index >= len(self.batch_items):
             return
@@ -498,10 +498,10 @@ class BatchProcessPage(QWidget):
 
     def start_processing(self):
         if self.batch_thread is not None:
-            QMessageBox.information(self, "处理中", "批量处理任务正在运行，请等待完成。")
+            show_info(self, "处理中", "批量处理任务正在运行，请等待完成。")
             return
         if not self.batch_items:
-            QMessageBox.information(self, "批量处理", "请先添加至少一张图片。")
+            show_info(self, "批量处理", "请先添加至少一张图片。")
             return
         output_dir = Path(self.output_dir).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)

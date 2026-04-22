@@ -15,9 +15,10 @@ class TemplateSpec:
 
 FEATURED_TEMPLATE_ORDER = [
     "背景模糊",
+    "背景模糊（自定义文字）",
     "标准水印",
     "标准水印2",
-    "尼康专用背景模糊",
+    "背景模糊（尼康专用）",
 ]
 
 

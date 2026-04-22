@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from core.template_inputs import format_template_display_name, get_template_input_specs
 from UI.shared.qt import (
     ALIGN_CENTER,
     ALIGN_LEFT,
@@ -15,6 +16,7 @@ from UI.shared.qt import (
     QHBoxLayout,
     QLabel,
     QPixmap,
+    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -61,6 +63,7 @@ class TemplateThumbnailLabel(QLabel):
 
 class TemplateLibraryCard(QFrame):
     clicked = Signal(str)
+    edit_requested = Signal(str)
 
     def __init__(self, spec: TemplateSpec):
         super().__init__()
@@ -94,10 +97,20 @@ class TemplateLibraryCard(QFrame):
         footer_layout.setContentsMargins(4, 0, 4, 0)
         footer_layout.setSpacing(10)
 
-        self.title_label = QLabel(spec.name)
+        self.title_label = QLabel()
         self.title_label.setObjectName("templateLibraryTitle")
+        self.title_label.setWordWrap(True)
         set_widget_font_size(self.title_label, 13)
         footer_layout.addWidget(self.title_label, 1, ALIGN_LEFT)
+
+        self.edit_button: Optional[QPushButton] = None
+        if get_template_input_specs(spec.name):
+            self.edit_button = QPushButton("修改")
+            self.edit_button.setObjectName("templateLibraryEditButton")
+            self.edit_button.setCursor(POINTING_HAND_CURSOR)
+            set_widget_font_size(self.edit_button, 10)
+            self.edit_button.clicked.connect(lambda checked=False, name=spec.name: self.edit_requested.emit(name))
+            footer_layout.addWidget(self.edit_button, 0, ALIGN_RIGHT)
 
         self.badge_label = QLabel("当前")
         self.badge_label.setObjectName("templateLibraryBadge")
@@ -106,10 +119,20 @@ class TemplateLibraryCard(QFrame):
         footer_layout.addWidget(self.badge_label, 0, ALIGN_RIGHT)
         layout.addWidget(footer)
 
+        self.refresh_title()
+
+    def refresh_title(self):
+        title = format_template_display_name(self.spec.name)
+        self.title_label.setText(title)
+        self.title_label.setToolTip(title)
+
     def set_selected(self, selected: bool):
         self.setProperty("cardSelected", selected)
         self.badge_label.setVisible(selected)
-        for widget in [self, self.preview_frame, self.title_label, self.badge_label]:
+        widgets = [self, self.preview_frame, self.title_label, self.badge_label]
+        if self.edit_button is not None:
+            widgets.append(self.edit_button)
+        for widget in widgets:
             refresh_widget_style(widget)
 
     def mousePressEvent(self, event):
@@ -159,4 +182,3 @@ class CreateTemplateCard(QFrame):
             event.accept()
             return
         super().mousePressEvent(event)
-

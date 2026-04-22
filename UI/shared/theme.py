@@ -287,6 +287,23 @@ EDITOR_STYLESHEET = """
             QFrame#templateLibraryCard[cardSelected="true"] QLabel#templateLibraryTitle {
                 color: #a3c9ff;
             }
+            QPushButton#templateLibraryEditButton {
+                min-height: 28px;
+                padding: 0 10px;
+                border: none;
+                border-radius: 8px;
+                background: #252626;
+                color: #b7bcc3;
+                font-weight: 800;
+            }
+            QPushButton#templateLibraryEditButton:hover {
+                background: #2b2c2c;
+                color: #e7e5e5;
+            }
+            QFrame#templateLibraryCard[cardSelected="true"] QPushButton#templateLibraryEditButton {
+                background: #1f2020;
+                color: #a3c9ff;
+            }
             QLabel#templateLibraryBadge {
                 color: #83fff6;
                 background: rgba(131, 255, 246, 0.08);
